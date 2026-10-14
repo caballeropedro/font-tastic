@@ -1,0 +1,35 @@
+{
+  "name": "@font-tastic/devtool",
+  "version": "0.1.0",
+  "description": "Floating in-app devtool widget for Font-Tastic typography testing",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.tsx --format cjs,esm --dts --external react react-dom",
+    "dev": "tsup src/index.tsx --format cjs,esm --watch --dts --external react react-dom"
+  },
+  "dependencies": {
+    "@font-tastic/core": "workspace:*",
+    "lucide-react": "^1.16.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  }
+}
