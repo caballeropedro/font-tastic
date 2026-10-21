@@ -25,7 +25,7 @@ Choosing typography usually means guessing, copying `<link>` stylesheets, editin
 | :--- | :--- |
 | [`@font-tastic/core`](./packages/core) | Core engine: Google Fonts catalog, dynamic loader, CSS variable scanner, style override manager, and code exporter. |
 | [`@font-tastic/devtool`](./packages/devtool) | React in-app devtool widget with floating trigger badge, drawer, categories, sliders, and export dialog. |
-| [`playground`](./playground) | A realistic SaaS and editorial demo app with Tailwind CSS to test and demonstrate live typography switching. |
+| [`web`](./web) | Official website, documentation, and live playground to test and demonstrate live typography switching. |
 
 ---
 

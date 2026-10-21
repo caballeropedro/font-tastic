@@ -207,7 +207,7 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  playground:
+  web:
     dependencies:
       '@font-tastic/core':
         specifier: workspace:*

@@ -4,8 +4,8 @@
   "private": true,
   "description": "Open-source in-app typography devtool with auto-detection for web projects",
   "scripts": {
-    "dev": "pnpm --filter font-tastic-playground dev",
-    "build": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter font-tastic-playground build",
+    "dev": "pnpm --filter font-tastic-web dev",
+    "build": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter font-tastic-web build",
     "test": "echo \"Running tests...\""
   },
   "devDependencies": {

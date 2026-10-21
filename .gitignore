@@ -3,3 +3,4 @@ dist
 .pnpm-store
 .DS_Store
 *.local
+.vercel
