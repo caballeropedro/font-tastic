@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter font-tastic-web dev",
     "build": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter font-tastic-web build",
+    "release": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter \"@font-tastic/*\" publish --access public --no-git-checks",
     "test": "echo \"Running tests...\""
   },
   "devDependencies": {
