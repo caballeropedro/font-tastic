@@ -1,25 +1,25 @@
-# 🔤 Font-Tastic
+# Font-Tastic
 
 > **The open-source typography studio and in-app devtool for modern web projects.**  
 > Effortlessly browse, test, and pair Google Fonts live on your real UI components with zero configuration.
 
 ---
 
-## ⚡ Why Font-Tastic?
+## Why Font-Tastic?
 
 Choosing typography usually means guessing, copying `<link>` stylesheets, editing config files, waiting for reloads, and realizing the font doesn't fit your actual navigation, cards, or hero components.
 
 **Font-Tastic brings Google Fonts directly into your running application:**
-- 🔍 **Auto-Detection:** Automatically scans your project's CSS variables (`--font-heading`, `--font-body`, Tailwind's `--font-sans` / `--font-mono`) and computed styles.
-- 🎯 **Channel Switching:** Independently preview fonts for **Headings (`h1-h6`)**, **Body & UI (`p`, buttons)**, and **Code (`code`, `pre`)**.
-- ✨ **Curated Pairings & Shuffle:** 1-click pairings tested by designers (Modern SaaS, Editorial Luxury, Neo-Brutalist, etc.) plus a randomizer.
-- 🎛️ **Typography Fine-Tuning:** Live sliders for letter-spacing and font-scale without touching CSS.
-- 🚀 **1-Click Export:** Instantly copy your finalized setup as **Tailwind v3 config**, **Tailwind v4 `@theme`**, **CSS Variables**, **`@fontsource` pnpm commands**, or **Next.js `next/font`**.
-- 🛡️ **Zero Bundle Impact in Production:** Plug-and-play development widget.
+- **Auto-Detection:** Automatically scans your project's CSS variables (`--font-heading`, `--font-body`, Tailwind's `--font-sans` / `--font-mono`) and computed styles.
+- **Channel Switching:** Independently preview fonts for **Headings (`h1-h6`)**, **Body & UI (`p`, buttons)**, and **Code (`code`, `pre`)**.
+- **Curated Pairings & Shuffle:** 1-click pairings tested by designers (Modern SaaS, Editorial Luxury, Neo-Brutalist, etc.) plus a randomizer.
+- **Typography Fine-Tuning:** Live sliders for letter-spacing and font-scale without touching CSS.
+- **1-Click Export:** Instantly copy your finalized setup as **Tailwind v3 config**, **Tailwind v4 `@theme`**, **CSS Variables**, **`@fontsource` pnpm commands**, or **Next.js `next/font`**.
+- **Zero Bundle Impact in Production:** Plug-and-play development widget.
 
 ---
 
-## 📦 Packages in this Monorepo
+## Packages in this Monorepo
 
 | Package | Description |
 | :--- | :--- |
@@ -29,7 +29,7 @@ Choosing typography usually means guessing, copying `<link>` stylesheets, editin
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install in your project
 
@@ -60,7 +60,7 @@ A sleek floating badge will appear in the bottom corner. Click it or press `Ctrl
 
 ---
 
-## 🛠️ Development & Contributing
+## Development & Contributing
 
 This project is managed as a `pnpm` monorepo.
 
@@ -86,5 +86,5 @@ pnpm build
 
 ---
 
-## 📄 License
+## License
 MIT © Pedro & The Font-Tastic Open Source Contributors.
