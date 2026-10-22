@@ -12,7 +12,8 @@ import {
   Check,
   Sliders,
   Layers,
-  Keyboard
+  Keyboard,
+  Mail
 } from 'lucide-react';
 
 const DOC_SNIPPETS = {
@@ -129,6 +130,13 @@ export function App() {
               className="hidden sm:inline-flex text-xs font-medium text-slate-300 hover:text-white transition"
             >
               Documentation
+            </a>
+            <a
+              href="mailto:me@anthonwood.com"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white transition"
+            >
+              <Mail size={13} className="text-blue-400" />
+              <span>Contact</span>
             </a>
             <div className="hidden md:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 border border-slate-700/60 px-3 py-1.5 rounded-lg font-mono">
               <span>Press</span>
@@ -567,8 +575,35 @@ export function App() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-8 text-center text-xs text-slate-500">
-        <p>Font-Tastic — The in-app typography studio for modern web projects.</p>
+      <footer className="border-t border-slate-800/80 py-8 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:items-start items-center gap-1">
+            <p>Font-Tastic — The in-app typography studio for modern web projects.</p>
+            <a
+              href="https://www.anthonwood.com/about"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-blue-400 transition"
+            >
+              Made with love, order and progress by <span className="font-medium text-slate-300 underline decoration-slate-700 underline-offset-4 hover:decoration-blue-400">Antonio Madera</span> :)
+            </a>
+          </div>
+          <div className="flex items-center gap-6">
+            <a
+              href="#docs"
+              className="hover:text-slate-300 transition"
+            >
+              Documentation
+            </a>
+            <a
+              href="mailto:me@anthonwood.com"
+              className="inline-flex items-center gap-1.5 text-slate-400 hover:text-blue-400 transition font-medium"
+            >
+              <Mail size={13} />
+              <span>me@anthonwood.com</span>
+            </a>
+          </div>
+        </div>
       </footer>
 
       {/* The Star of the Show: In-App Font-Tastic Devtool Widget */}
