@@ -31,6 +31,31 @@ export interface FontTasticProps {
   position?: 'bottom-right' | 'bottom-left';
 }
 
+function FontTasticLogo({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 120 120"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ flexShrink: 0 }}
+    >
+      <rect x="6" y="6" width="108" height="108" rx="22" fill="#0F172A" stroke="#334155" strokeWidth="4" />
+      <path
+        d="M28 24H60V27.5C53.5 27.5 50 30.5 50 37.5V82.5C50 89.5 53.5 92.5 60 92.5V96H28V92.5C34.5 92.5 38 89.5 38 82.5V37.5C38 30.5 34.5 27.5 28 27.5V24Z"
+        fill="#F8FAFC"
+      />
+      <rect x="44" y="39" width="48" height="11" rx="5.5" fill="#0B1324" stroke="#38BDF8" strokeOpacity="0.7" strokeWidth="2" />
+      <rect x="46.5" y="41.5" width="31" height="6" rx="3" fill="#3B82F6" />
+      <circle cx="77" cy="44.5" r="7.5" fill="#F8FAFC" stroke="#3B82F6" strokeWidth="3.5" />
+      <rect x="44" y="58.5" width="48" height="11" rx="5.5" fill="#0B1324" stroke="#22D3EE" strokeOpacity="0.7" strokeWidth="2" />
+      <rect x="46.5" y="61" width="19" height="6" rx="3" fill="#22D3EE" />
+      <circle cx="65.5" cy="64" r="7.5" fill="#F8FAFC" stroke="#22D3EE" strokeWidth="3.5" />
+    </svg>
+  );
+}
+
 export function FontTastic({ initialOpen = false, position = 'bottom-right' }: FontTasticProps) {
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeTab, setActiveTab] = useState<'browse' | 'pairings' | 'detected' | 'export'>('browse');
@@ -172,7 +197,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
           onClick={() => setIsOpen(true)}
           title="Open Font-Tastic Typography Devtool (Ctrl+Shift+F)"
         >
-          <Type size={16} color="#3b82f6" />
+          <FontTasticLogo size={20} />
           <span style={{ fontWeight: 600 }}>Font-Tastic</span>
           {activeOverrideCount > 0 ? (
             <span className="ft-trigger-badge">{activeOverrideCount} Active</span>
@@ -188,7 +213,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
           {/* Header */}
           <div className="ft-header">
             <div className="ft-header-title">
-              <Type size={18} color="#3b82f6" />
+              <FontTasticLogo size={22} />
               <span>Font-Tastic</span>
               {projectState?.isTailwindDetected && (
                 <span className="ft-tag">
