@@ -11,6 +11,7 @@
   "dependencies": {
     "@font-tastic/core": "workspace:*",
     "@font-tastic/devtool": "workspace:*",
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^1.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

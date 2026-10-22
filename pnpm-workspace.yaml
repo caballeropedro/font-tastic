@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - 'web'
+linkWorkspacePackages: true
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
