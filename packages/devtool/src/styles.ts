@@ -19,11 +19,53 @@ export const DEVTOOL_CSS = `
   color: var(--ft-text-primary) !important;
   line-height: 1.5 !important;
   box-sizing: border-box !important;
+  color-scheme: dark !important;
   z-index: 999999 !important;
 }
 
 .ft-root *, .ft-root *::before, .ft-root *::after {
   box-sizing: border-box !important;
+}
+
+/* Custom Dark Scrollbars (Vertical & Horizontal) inside Devtool Panel */
+.ft-root,
+.ft-root * {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+.ft-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ft-root ::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 999px;
+}
+
+.ft-root ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.6);
+}
+
+.ft-root ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.ft-root ::-webkit-scrollbar-thumb:active {
+  background: #3b82f6;
+}
+
+.ft-root ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.ft-root ::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Floating Trigger Button */
@@ -543,7 +585,8 @@ export const DEVTOOL_CSS = `
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: 6px;
+  flex-shrink: 0;
 }
 
 .ft-chip {
@@ -676,9 +719,17 @@ export const DEVTOOL_CSS = `
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   font-size: 11px;
   color: #e2e8f0;
-  overflow-x: auto;
+  overflow: auto;
   position: relative;
   max-height: 220px;
+}
+
+.ft-code-block pre {
+  margin: 0;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: 1.55;
+  white-space: pre;
 }
 
 .ft-copy-btn {

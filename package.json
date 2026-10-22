@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter font-tastic-web dev",
     "build": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && pnpm --filter font-tastic-web build",
-    "release": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && (cd packages/core && npm publish --access public --userconfig ../../.npmrc) && (cd packages/devtool && npm publish --access public --userconfig ../../.npmrc)",
+    "release": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && (cd packages/core && /usr/bin/npm publish --access public --userconfig ../../.npmrc) && (cd packages/devtool && /usr/bin/npm publish --access public --userconfig ../../.npmrc)",
     "test": "echo \"Running tests...\""
   },
   "devDependencies": {

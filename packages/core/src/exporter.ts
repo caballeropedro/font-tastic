@@ -1,17 +1,27 @@
 import { ExportSnippetOptions } from './types';
 
+function cleanFontFamilyName(rawFont: string, fallback: string): string {
+  if (!rawFont) return fallback;
+  const primary = rawFont.split(',')[0]?.trim().replace(/^['"]+|['"]+$/g, '');
+  return primary || fallback;
+}
+
 /**
  * Generates ready-to-use export snippets for various frameworks and setups.
  */
 export function generateFontExport(options: ExportSnippetOptions) {
   const {
-    headingFont = 'Space Grotesk',
-    bodyFont = 'Inter',
-    monoFont = 'JetBrains Mono',
+    headingFont: rawHeadingFont = 'Space Grotesk',
+    bodyFont: rawBodyFont = 'Inter',
+    monoFont: rawMonoFont = 'JetBrains Mono',
     headingVar = '--font-heading',
     bodyVar = '--font-body',
     monoVar = '--font-mono'
   } = options;
+
+  const headingFont = cleanFontFamilyName(rawHeadingFont, 'Space Grotesk');
+  const bodyFont = cleanFontFamilyName(rawBodyFont, 'Inter');
+  const monoFont = cleanFontFamilyName(rawMonoFont, 'JetBrains Mono');
 
   const fontFamilies = Array.from(new Set([headingFont, bodyFont, monoFont].filter(Boolean)));
 

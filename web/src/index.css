@@ -6,6 +6,47 @@
   --font-heading: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  color-scheme: dark;
+}
+
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0b0f19;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0f19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+  border: 2px solid #0b0f19;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #3b82f6;
+}
+
+::-webkit-scrollbar-corner {
+  background: #0b0f19;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {
