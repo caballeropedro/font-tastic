@@ -120,7 +120,7 @@ export function App() {
               Font<span className="text-blue-500">-Tastic</span>
             </span>
             <span className="hidden sm:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-              v0.1.0-alpha
+              v0.1.1-alpha
             </span>
           </div>
 

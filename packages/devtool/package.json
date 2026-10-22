@@ -1,6 +1,6 @@
 {
   "name": "@font-tastic/devtool",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Floating in-app devtool widget for Font-Tastic typography testing",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -30,7 +30,7 @@
     "dev": "tsup src/index.tsx --format cjs,esm --watch --dts --external react react-dom"
   },
   "dependencies": {
-    "@font-tastic/core": "^0.1.0",
+    "@font-tastic/core": "^0.1.1",
     "lucide-react": "^1.16.0"
   },
   "peerDependencies": {
