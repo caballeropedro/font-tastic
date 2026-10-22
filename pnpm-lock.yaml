@@ -182,8 +182,8 @@ importers:
   packages/devtool:
     dependencies:
       '@font-tastic/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: ^0.1.0
+        version: 0.1.0
       lucide-react:
         specifier: ^1.16.0
         version: 1.56.0(@types/react@18.3.31)(react@18.3.1)
@@ -650,6 +650,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@font-tastic/core@0.1.0':
+    resolution: {integrity: sha512-+WdzrNNXEbG1ZbsEXwZGt/eofyAquEWWswRQOZyPDwdr+f6+jUU7YwJYh7LwTnzEvhobRbsCSTaluHM3udwRjQ==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1664,6 +1667,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.7':
     optional: true
+
+  '@font-tastic/core@0.1.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

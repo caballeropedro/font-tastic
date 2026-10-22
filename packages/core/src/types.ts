@@ -19,6 +19,8 @@ export interface ChannelConfig {
   label: string;
   description: string;
   defaultSelector: string;
+  highlightSelector?: string;
+  color?: string;
   fallbackVar?: string;
   targetVar?: string;
   customSelector?: string;
@@ -31,6 +33,13 @@ export interface ChannelState {
   letterSpacing?: string;
   lineHeight?: string;
   fontSizeScale?: number;
+}
+
+export interface TypographyHistoryEntry {
+  id: string;
+  timestamp: number;
+  label: string;
+  channels: Record<string, ChannelState>;
 }
 
 export interface DetectedToken {

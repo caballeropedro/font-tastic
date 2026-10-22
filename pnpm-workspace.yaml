@@ -3,3 +3,5 @@ packages:
   - 'web'
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@font-tastic/core@0.1.0'

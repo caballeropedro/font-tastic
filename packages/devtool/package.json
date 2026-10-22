@@ -30,7 +30,7 @@
     "dev": "tsup src/index.tsx --format cjs,esm --watch --dts --external react react-dom"
   },
   "dependencies": {
-    "@font-tastic/core": "workspace:*",
+    "@font-tastic/core": "^0.1.0",
     "lucide-react": "^1.16.0"
   },
   "peerDependencies": {

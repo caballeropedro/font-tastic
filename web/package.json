@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm --filter \"@font-tastic/*\" build && tsc && vite build",
+    "build": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

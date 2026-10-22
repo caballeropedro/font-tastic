@@ -5,8 +5,8 @@
   "description": "Open-source in-app typography devtool with auto-detection for web projects",
   "scripts": {
     "dev": "pnpm --filter font-tastic-web dev",
-    "build": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter font-tastic-web build",
-    "release": "pnpm --filter \"@font-tastic/*\" build && pnpm --filter \"@font-tastic/*\" publish --access public --no-git-checks",
+    "build": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && pnpm --filter font-tastic-web build",
+    "release": "pnpm --filter \"@font-tastic/*\" build && (cd packages/core && npm publish --access public) && (cd packages/devtool && npm publish --access public)",
     "test": "echo \"Running tests...\""
   },
   "devDependencies": {

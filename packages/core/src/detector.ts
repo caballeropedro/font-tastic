@@ -121,7 +121,9 @@ export function detectProjectTypography(): ProjectTypographyState {
     id: 'heading',
     label: 'Headings',
     description: 'Applied to h1, h2, h3, h4, h5, h6 and headline components',
-    defaultSelector: 'h1, h2, h3, h4, h5, h6, .heading, [data-font="heading"]',
+    defaultSelector: 'h1, h2, h3, h4, h5, h6, .heading, .font-heading, [data-font="heading"]',
+    highlightSelector: 'h1, h2, h3, h4, h5, h6, .heading, .font-heading, [data-font="heading"]',
+    color: '#3b82f6',
     targetVar: headingVar,
     fallbackVar: '--font-heading'
   });
@@ -139,7 +141,9 @@ export function detectProjectTypography(): ProjectTypographyState {
     id: 'body',
     label: 'Body & UI',
     description: 'Applied to body, paragraphs, buttons, navigation, and general UI',
-    defaultSelector: 'body, p, span, button, a, input, [data-font="body"]',
+    defaultSelector: 'body, p, span, button, a, input, li, label, [data-font="body"]',
+    highlightSelector: 'p, span, button, a, input, li, label, td, th, [data-font="body"]',
+    color: '#a855f7',
     targetVar: bodyVar,
     fallbackVar: '--font-body'
   });
@@ -156,6 +160,8 @@ export function detectProjectTypography(): ProjectTypographyState {
     label: 'Code & Monospace',
     description: 'Applied to code blocks, inline code, pre, and terminal UI',
     defaultSelector: 'code, pre, kbd, samp, .font-mono, [data-font="mono"]',
+    highlightSelector: 'code, pre, kbd, samp, .font-mono, [data-font="mono"]',
+    color: '#10b981',
     targetVar: monoVar,
     fallbackVar: '--font-mono'
   });
@@ -209,21 +215,27 @@ function getDefaultChannels(): ChannelConfig[] {
       id: 'heading',
       label: 'Headings',
       description: 'Applied to h1, h2, h3, h4, h5, h6 and headline components',
-      defaultSelector: 'h1, h2, h3, h4, h5, h6, .heading',
+      defaultSelector: 'h1, h2, h3, h4, h5, h6, .heading, .font-heading',
+      highlightSelector: 'h1, h2, h3, h4, h5, h6, .heading, .font-heading',
+      color: '#3b82f6',
       targetVar: '--font-heading'
     },
     {
       id: 'body',
       label: 'Body & UI',
       description: 'Applied to body, paragraphs, buttons, navigation, and general UI',
-      defaultSelector: 'body, p, span, button, a, input',
+      defaultSelector: 'body, p, span, button, a, input, li, label',
+      highlightSelector: 'p, span, button, a, input, li, label, td, th',
+      color: '#a855f7',
       targetVar: '--font-body'
     },
     {
       id: 'mono',
       label: 'Code & Monospace',
       description: 'Applied to code blocks, inline code, pre, and terminal UI',
-      defaultSelector: 'code, pre, kbd, samp',
+      defaultSelector: 'code, pre, kbd, samp, .font-mono',
+      highlightSelector: 'code, pre, kbd, samp, .font-mono',
+      color: '#10b981',
       targetVar: '--font-mono'
     }
   ];
