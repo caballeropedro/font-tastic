@@ -1,7 +1,7 @@
 # Font-Tastic
 
-> **The open-source typography studio and in-app devtool for modern web projects.**  
-> Effortlessly browse, test, and pair Google Fonts live on your real UI components with zero configuration.
+> **"Stop thinking about what it would look like—just look at it."**  
+> Skip the pre-design guesswork. Preview, pair, and fine-tune Google Fonts live on your real UI components—then export with 1 click.
 
 ---
 

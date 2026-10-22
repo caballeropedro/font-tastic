@@ -168,15 +168,14 @@ export function App() {
           </div>
 
           <h1 className="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white leading-[1.1] mb-6">
-            Preview, Pair & Perfect <br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400">
-              Fonts On Your Real UI
+            Stop thinking about what it would look like—<br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 italic">
+              just look at it.
             </span>
           </h1>
 
           <p className="font-sans text-slate-400 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 font-normal">
-            No more copying stylesheets, editing configs, or guessing how a font looks on your layout.
-            Inspect, test Google Fonts live on-the-fly, and export with 1 click.
+            Skip the pre-design guesswork. Preview, pair, and fine-tune Google Fonts live on your real UI components—then export with 1 click.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
