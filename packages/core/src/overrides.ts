@@ -423,7 +423,11 @@ export class FontOverrideManager {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
-      .map((s) => (s === 'body' ? 'body' : `${s}:not(.ft-root):not(.ft-root *)`))
+      .map((s) =>
+        s === 'body'
+          ? 'body'
+          : `${s}:not(.ft-root):not(.ft-root *):not([data-ft-dynamic]):not([data-ft-dynamic] *)`
+      )
       .join(', ');
   }
 

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import { FontTastic } from '@font-tastic/devtool';
+import { preloadFonts } from '@font-tastic/core';
 import {
   Sparkles,
   ArrowRight,
@@ -84,9 +85,35 @@ const snippets = generateFontExport({
 });`
 };
 
+const HERO_DYNAMIC_FONTS = [
+  { family: 'Playfair Display', fallback: 'serif' },
+  { family: 'Syne', fallback: 'sans-serif' },
+  { family: 'JetBrains Mono', fallback: 'monospace' },
+  { family: 'Cormorant Garamond', fallback: 'serif' },
+  { family: 'Righteous', fallback: 'sans-serif' },
+  { family: 'Caveat', fallback: 'cursive' },
+  { family: 'Fraunces', fallback: 'serif' },
+  { family: 'Unbounded', fallback: 'sans-serif' }
+];
+
 export function App() {
   const [activeFrameworkTab, setActiveFrameworkTab] = useState<'vite' | 'nextjs' | 'css' | 'core'>('vite');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [heroFontIdx, setHeroFontIdx] = useState(0);
+  const [prevHeroFontIdx, setPrevHeroFontIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    preloadFonts(HERO_DYNAMIC_FONTS.map((f) => f.family));
+
+    const interval = window.setInterval(() => {
+      setHeroFontIdx((current) => {
+        setPrevHeroFontIdx(current);
+        return (current + 1) % HERO_DYNAMIC_FONTS.length;
+      });
+    }, 2200);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   const copyCode = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -169,8 +196,39 @@ export function App() {
 
           <h1 className="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white leading-[1.1] mb-6">
             Stop thinking about what it would look like—<br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 italic">
-              just look at it.
+            <span
+              data-ft-dynamic="true"
+              className="inline-grid overflow-hidden align-bottom py-1 px-2 -my-1"
+            >
+              {prevHeroFontIdx !== null && (
+                <span
+                  key={`out-${prevHeroFontIdx}-${heroFontIdx}`}
+                  style={
+                    {
+                      gridArea: '1 / 1',
+                      '--hero-font-family': `'${HERO_DYNAMIC_FONTS[prevHeroFontIdx].family}', ${HERO_DYNAMIC_FONTS[prevHeroFontIdx].fallback}`
+                    } as CSSProperties
+                  }
+                  className="hero-dynamic-font animate-hero-slide-out-down text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 italic select-none pointer-events-none"
+                  aria-hidden="true"
+                >
+                  just look at it.
+                </span>
+              )}
+              <span
+                key={`in-${heroFontIdx}`}
+                style={
+                  {
+                    gridArea: '1 / 1',
+                    '--hero-font-family': `'${HERO_DYNAMIC_FONTS[heroFontIdx].family}', ${HERO_DYNAMIC_FONTS[heroFontIdx].fallback}`
+                  } as CSSProperties
+                }
+                className={`hero-dynamic-font ${
+                  prevHeroFontIdx !== null ? 'animate-hero-slide-in-down' : ''
+                } text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 italic`}
+              >
+                just look at it.
+              </span>
             </span>
           </h1>
 
