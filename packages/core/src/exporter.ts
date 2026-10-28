@@ -1,4 +1,5 @@
 import { ExportSnippetOptions } from './types';
+import { getCustomFont } from './loader';
 
 function cleanFontFamilyName(rawFont: string, fallback: string): string {
   if (!rawFont) return fallback;
@@ -24,20 +25,49 @@ export function generateFontExport(options: ExportSnippetOptions) {
   const monoFont = cleanFontFamilyName(rawMonoFont, 'JetBrains Mono');
 
   const fontFamilies = Array.from(new Set([headingFont, bodyFont, monoFont].filter(Boolean)));
+  const googleFamilies = fontFamilies.filter((f) => !getCustomFont(f));
+  const customFonts = fontFamilies
+    .map((f) => getCustomFont(f))
+    .filter((f): f is NonNullable<ReturnType<typeof getCustomFont>> => Boolean(f));
 
-  // 1. Google Fonts HTML Link
-  const fontParams = fontFamilies
-    .map((f) => `family=${encodeURIComponent(f).replace(/%20/g, '+')}:wght@400;500;600;700`)
-    .join('&');
-  const googleFontsUrl = `https://fonts.googleapis.com/css2?${fontParams}&display=swap`;
+  // 1. Google Fonts + Custom Stylesheet HTML Link
+  const headLines: string[] = ['<!-- Add to your HTML <head> or RootLayout -->'];
+  if (googleFamilies.length > 0) {
+    const fontParams = googleFamilies
+      .map((f) => `family=${encodeURIComponent(f).replace(/%20/g, '+')}:wght@400;500;600;700`)
+      .join('&');
+    const googleFontsUrl = `https://fonts.googleapis.com/css2?${fontParams}&display=swap`;
+    headLines.push(
+      '<link rel="preconnect" href="https://fonts.googleapis.com">',
+      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+      `<link href="${googleFontsUrl}" rel="stylesheet">`
+    );
+  }
+  for (const cf of customFonts) {
+    if (cf.sourceType === 'stylesheet') {
+      headLines.push(`<link href="${cf.sourceUrl}" rel="stylesheet">`);
+    }
+  }
+  const htmlHeadSnippet = headLines.join('\n');
 
-  const htmlHeadSnippet = `<!-- Add to your HTML <head> or RootLayout -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="${googleFontsUrl}" rel="stylesheet">`;
+  // Optional @font-face blocks for custom file / direct font-url fonts
+  const customFontFaceBlocks = customFonts
+    .filter((cf) => cf.sourceType === 'file' || cf.sourceType === 'font-url')
+    .map((cf) => {
+      const urlForExport = cf.sourceType === 'file' ? `/fonts/${cf.fileName || `${cf.family.replace(/\s+/g, '-')}.woff2`}` : cf.sourceUrl;
+      const formatStr = cf.format ? ` format('${cf.format}')` : '';
+      return `@font-face {
+  font-family: '${cf.family}';
+  src: url('${urlForExport}')${formatStr};
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}\n\n`;
+    })
+    .join('');
 
   // 2. CSS Variables
-  const cssVariablesSnippet = `:root {
+  const cssVariablesSnippet = `${customFontFaceBlocks}:root {
   ${headingVar}: '${headingFont}', sans-serif;
   ${bodyVar}: '${bodyFont}', sans-serif;
   ${monoVar}: '${monoFont}', monospace;
@@ -72,7 +102,7 @@ module.exports = {
 
   // 4. Tailwind CSS v4 Theme
   const tailwindV4Snippet = `/* In your main CSS file (globals.css / main.css) */
-@theme {
+${customFontFaceBlocks}@theme {
   --font-heading: '${headingFont}', sans-serif;
   --font-sans: '${bodyFont}', sans-serif;
   --font-mono: '${monoFont}', monospace;

@@ -754,4 +754,155 @@ export const DEVTOOL_CSS = `
   background: #334155;
   color: #f8fafc;
 }
+
+/* Search + Import Row */
+.ft-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ft-import-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.ft-import-trigger-btn:hover {
+  border-color: #3b82f6;
+  background: #273549;
+  color: #ffffff;
+}
+
+.ft-import-trigger-btn-active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #3b82f6;
+  color: #60a5fa;
+}
+
+/* Custom Font Import Panel */
+.ft-import-panel {
+  background: #131c2e;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ft-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ft-import-modes {
+  display: flex;
+  gap: 4px;
+  background: #0f172a;
+  padding: 3px;
+  border-radius: 7px;
+  border: 1px solid #273549;
+}
+
+.ft-import-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ft-import-mode-btn:hover {
+  color: #f8fafc;
+}
+
+.ft-import-mode-btn-active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.ft-dropzone {
+  border: 1.5px dashed #334155;
+  border-radius: 8px;
+  padding: 14px 12px;
+  text-align: center;
+  background: #0f172a;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ft-dropzone:hover,
+.ft-dropzone-active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.ft-import-fields-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 8px;
+}
+
+.ft-input-field,
+.ft-select-field {
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: #f8fafc;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ft-input-field:focus,
+.ft-select-field:focus {
+  border-color: #3b82f6;
+}
+
+.ft-import-error {
+  font-size: 11px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.ft-badge-custom {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
 `;

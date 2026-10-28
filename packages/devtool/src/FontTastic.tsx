@@ -7,9 +7,18 @@ import {
   generateFontExport,
   ProjectTypographyState,
   FontCategory,
+  FontItem,
+  CustomFontItem,
   ChannelState,
   TypographyHistoryEntry,
-  loadGoogleFont
+  loadGoogleFont,
+  getCustomFonts,
+  subscribeCustomFonts,
+  importFontFromFile,
+  importFontFromUrl,
+  removeCustomFont,
+  inferFontFamilyFromFilename,
+  inferFontInfoFromUrl
 } from '@font-tastic/core';
 import { DEVTOOL_CSS } from './styles';
 import {
@@ -27,7 +36,10 @@ import {
   EyeOff,
   BoxSelect,
   History,
-  Trash2
+  Trash2,
+  Upload,
+  Link,
+  Plus
 } from 'lucide-react';
 
 export interface FontTasticProps {
@@ -108,9 +120,23 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   const [activeTab, setActiveTab] = useState<'browse' | 'pairings' | 'history' | 'detected' | 'export'>('browse');
   const [activeChannelId, setActiveChannelId] = useState<string>('heading');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<FontCategory | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<FontCategory | 'all' | 'custom'>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [exportFramework, setExportFramework] = useState<'tailwind-v3' | 'tailwind-v4' | 'css-vars' | 'fontsource' | 'nextjs'>('tailwind-v3');
+
+  // Custom Font Import state
+  const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importMode, setImportMode] = useState<'file' | 'url'>('file');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importFamilyName, setImportFamilyName] = useState('');
+  const [importFamilyTouched, setImportFamilyTouched] = useState(false);
+  const [importCategory, setImportCategory] = useState<FontCategory>('sans-serif');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [projectState, setProjectState] = useState<ProjectTypographyState | null>(null);
   const [channelStates, setChannelStates] = useState<Map<string, ChannelState>>(new Map());
@@ -145,6 +171,14 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     }
     styleEl.textContent = DEVTOOL_CSS;
 
+    // 1b. Hydrate and subscribe to custom fonts
+    const initialCustom = getCustomFonts();
+    setCustomFonts(initialCustom);
+    initialCustom.forEach((cf) => loadGoogleFont(cf.family));
+    const unsubscribeCustom = subscribeCustomFonts((updated) => {
+      setCustomFonts(updated);
+    });
+
     // 2. Detect project typography
     const detected = detectProjectTypography();
     setProjectState(detected);
@@ -170,21 +204,114 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
 
     return () => {
       unsubscribe();
+      unsubscribeCustom();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
-  // Filtered fonts list
+  // Combined & filtered fonts list (Custom fonts first, then Google Fonts catalog)
   const filteredFonts = useMemo(() => {
-    return GOOGLE_FONTS_CATALOG.filter((f) => {
+    const customNames = new Set(customFonts.map((cf) => cf.family.toLowerCase()));
+    const combined: FontItem[] = [
+      ...customFonts,
+      ...GOOGLE_FONTS_CATALOG.filter((f) => !customNames.has(f.family.toLowerCase()))
+    ];
+
+    return combined.filter((f) => {
       const matchesSearch =
         f.family.toLowerCase().includes(searchQuery.toLowerCase()) ||
         f.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
 
+      if (selectedCategory === 'custom') {
+        return matchesSearch && Boolean(f.isCustom);
+      }
       const matchesCat = selectedCategory === 'all' || f.category === selectedCategory;
       return matchesSearch && matchesCat;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [customFonts, searchQuery, selectedCategory]);
+
+  // Handle file selection for custom font import
+  const handleFileChosen = (file: File | null) => {
+    setImportError(null);
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    if (!/\.(woff2?|ttf|otf)$/i.test(file.name)) {
+      setImportError('Please select a valid font file (.woff2, .woff, .ttf, or .otf).');
+      return;
+    }
+    setSelectedFile(file);
+    const inferred = inferFontFamilyFromFilename(file.name);
+    setImportFamilyName(inferred);
+    setImportFamilyTouched(false);
+  };
+
+  // Handle URL input change for custom font import
+  const handleUrlInputChange = (val: string) => {
+    setImportUrl(val);
+    setImportError(null);
+    if (!importFamilyTouched || !importFamilyName.trim()) {
+      const info = inferFontInfoFromUrl(val);
+      if (info.inferredFamily) {
+        setImportFamilyName(info.inferredFamily);
+      }
+    }
+  };
+
+  // Submit custom font import (file or URL)
+  const handleImportSubmit = async () => {
+    setImportError(null);
+    setIsImporting(true);
+    try {
+      let imported: CustomFontItem;
+      if (importMode === 'file') {
+        if (!selectedFile) {
+          setImportError('Please choose a font file (.woff2, .woff, .ttf, .otf) first.');
+          setIsImporting(false);
+          return;
+        }
+        imported = await importFontFromFile(selectedFile, {
+          family: importFamilyName.trim() || undefined,
+          category: importCategory
+        });
+      } else {
+        if (!importUrl.trim()) {
+          setImportError('Please enter a font stylesheet URL or direct font file URL.');
+          setIsImporting(false);
+          return;
+        }
+        imported = await importFontFromUrl(importUrl, {
+          family: importFamilyName.trim() || undefined,
+          category: importCategory
+        });
+      }
+
+      // Immediately apply to active channel for live preview
+      await handleSelectFont(imported.family);
+
+      // Reset form and close import panel
+      setSelectedFile(null);
+      setImportUrl('');
+      setImportFamilyName('');
+      setImportFamilyTouched(false);
+      setIsImportOpen(false);
+      if (selectedCategory !== 'all' && selectedCategory !== 'custom' && selectedCategory !== imported.category) {
+        setSelectedCategory('all');
+      }
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Failed to import font.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleRemoveCustomFont = (family: string) => {
+    removeCustomFont(family);
+    if (currentChannelState?.selectedFont?.toLowerCase() === family.toLowerCase()) {
+      managerRef.current?.resetChannel(activeChannelId);
+    }
+  };
 
   // Active channel config & state
   const currentChannelConfig = useMemo(() => {
@@ -653,29 +780,205 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="ft-search-box">
-                <Search size={14} className="ft-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search Google fonts (e.g. Inter, Space, Tech, Luxury)..."
-                  className="ft-search-input"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              {/* Search Bar + Import Custom Font Button */}
+              <div className="ft-search-row">
+                <div className="ft-search-box" style={{ flex: 1 }}>
+                  <Search size={14} className="ft-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search fonts (e.g. Inter, Space, Custom)..."
+                    className="ft-search-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  className={`ft-import-trigger-btn ${isImportOpen ? 'ft-import-trigger-btn-active' : ''}`}
+                  onClick={() => {
+                    setIsImportOpen((prev) => !prev);
+                    setImportError(null);
+                  }}
+                  title="Import custom font from local file (.woff2, .woff, .ttf, .otf) or URL"
+                >
+                  <Plus size={13} />
+                  <span>Import Font</span>
+                </button>
               </div>
+
+              {/* Expandable Custom Font Import Panel (File or URL) */}
+              {isImportOpen && (
+                <div className="ft-import-panel">
+                  <div className="ft-import-header">
+                    <div className="ft-import-modes">
+                      <button
+                        type="button"
+                        className={`ft-import-mode-btn ${importMode === 'file' ? 'ft-import-mode-btn-active' : ''}`}
+                        onClick={() => {
+                          setImportMode('file');
+                          setImportError(null);
+                        }}
+                      >
+                        <Upload size={12} />
+                        <span>From File</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`ft-import-mode-btn ${importMode === 'url' ? 'ft-import-mode-btn-active' : ''}`}
+                        onClick={() => {
+                          setImportMode('url');
+                          setImportError(null);
+                        }}
+                      >
+                        <Link size={12} />
+                        <span>From URL</span>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="ft-icon-btn"
+                      onClick={() => setIsImportOpen(false)}
+                      title="Close import panel"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {importMode === 'file' ? (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".woff2,.woff,.ttf,.otf"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          handleFileChosen(file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <div
+                        className={`ft-dropzone ${isDraggingFile ? 'ft-dropzone-active' : ''}`}
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingFile(true);
+                        }}
+                        onDragLeave={() => setIsDraggingFile(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingFile(false);
+                          const file = e.dataTransfer.files?.[0] || null;
+                          handleFileChosen(file);
+                        }}
+                      >
+                        <Upload size={16} color={selectedFile ? '#3b82f6' : '#64748b'} />
+                        {selectedFile ? (
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 12 }}>
+                              {selectedFile.name}
+                            </div>
+                            <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                              {(selectedFile.size / 1024).toFixed(1)} KB · Click to change file
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>
+                              Click to browse or drag & drop font file
+                            </div>
+                            <div style={{ fontSize: 10, color: '#64748b' }}>
+                              Supports .woff2, .woff, .ttf, .otf
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="ft-control-item">
+                      <span className="ft-control-label">
+                        Font URL (CSS Stylesheet, &lt;link&gt;, or .woff2/.ttf/.otf URL)
+                      </span>
+                      <input
+                        type="text"
+                        className="ft-input-field"
+                        placeholder="https://api.fontshare.com/v2/css?f[]=satoshi@400,700 or https://.../font.woff2"
+                        value={importUrl}
+                        onChange={(e) => handleUrlInputChange(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="ft-import-fields-row">
+                    <div className="ft-control-item">
+                      <span className="ft-control-label">Font family name</span>
+                      <input
+                        type="text"
+                        className="ft-input-field"
+                        placeholder="e.g. Satoshi, Clash Display"
+                        value={importFamilyName}
+                        onChange={(e) => {
+                          setImportFamilyName(e.target.value);
+                          setImportFamilyTouched(true);
+                        }}
+                      />
+                    </div>
+                    <div className="ft-control-item">
+                      <span className="ft-control-label">Category</span>
+                      <select
+                        className="ft-select-field"
+                        value={importCategory}
+                        onChange={(e) => setImportCategory(e.target.value as FontCategory)}
+                      >
+                        <option value="sans-serif">Sans-Serif</option>
+                        <option value="serif">Serif</option>
+                        <option value="display">Display</option>
+                        <option value="monospace">Monospace</option>
+                        <option value="handwriting">Handwriting</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {importError && <div className="ft-import-error">{importError}</div>}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="ft-btn-cancel"
+                      onClick={() => setIsImportOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="ft-btn-apply"
+                      disabled={isImporting}
+                      onClick={handleImportSubmit}
+                    >
+                      <Check size={12} />
+                      <span>{isImporting ? 'Importing...' : `Import & Preview on ${currentChannelConfig?.label || 'Channel'}`}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Category Filter Chips */}
               <div className="ft-category-chips">
-                {(['all', 'sans-serif', 'serif', 'display', 'monospace', 'handwriting'] as const).map((cat) => (
-                  <button
-                    key={cat}
-                    className={`ft-chip ${selectedCategory === cat ? 'ft-chip-active' : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
-                  >
-                    {cat === 'all' ? 'All Types' : cat}
-                  </button>
-                ))}
+                {(['all', 'custom', 'sans-serif', 'serif', 'display', 'monospace', 'handwriting'] as const).map((cat) => {
+                  if (cat === 'custom' && customFonts.length === 0) return null;
+                  return (
+                    <button
+                      key={cat}
+                      className={`ft-chip ${selectedCategory === cat ? 'ft-chip-active' : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat === 'all'
+                        ? 'All Types'
+                        : cat === 'custom'
+                        ? `Imported (${customFonts.length})`
+                        : cat}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Font Cards Grid */}
@@ -696,11 +999,26 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                       <div className="ft-font-card-top">
                         <span className="ft-font-title">{font.family}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {font.isCustom && <span className="ft-badge-custom">Custom</span>}
                           {isApplied && <span className="ft-badge-applied">Applied</span>}
                           {isSelected && !isApplied && <span className="ft-badge-preview">Preview</span>}
                           <span style={{ fontSize: 10, color: '#64748b', textTransform: 'capitalize' }}>
                             {font.category}
                           </span>
+                          {font.isCustom && (
+                            <button
+                              type="button"
+                              className="ft-icon-btn"
+                              style={{ padding: 2 }}
+                              title={`Remove custom font "${font.family}"`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveCustomFont(font.family);
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                           {isSelected && <Check size={14} color="#3b82f6" />}
                         </div>
                       </div>

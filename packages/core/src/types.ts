@@ -1,5 +1,7 @@
 export type FontCategory = 'sans-serif' | 'serif' | 'display' | 'monospace' | 'handwriting';
 
+export type CustomFontSourceType = 'file' | 'stylesheet' | 'font-url';
+
 export interface FontItem {
   family: string;
   category: FontCategory;
@@ -10,6 +12,20 @@ export interface FontItem {
   tags?: string[];
   description?: string;
   popularRank?: number;
+  isCustom?: boolean;
+  sourceType?: CustomFontSourceType;
+  sourceUrl?: string;
+  fileName?: string;
+  format?: string;
+}
+
+export interface CustomFontItem extends FontItem {
+  isCustom: true;
+  sourceType: CustomFontSourceType;
+  sourceUrl: string;
+  fileName?: string;
+  format?: string;
+  addedAt?: number;
 }
 
 export type ChannelId = 'heading' | 'body' | 'mono' | string;
