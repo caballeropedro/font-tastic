@@ -182,7 +182,7 @@ importers:
   packages/devtool:
     dependencies:
       '@font-tastic/core':
-        specifier: ^0.1.1
+        specifier: ^0.1.2
         version: link:../core
       lucide-react:
         specifier: ^1.16.0
