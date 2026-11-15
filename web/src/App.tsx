@@ -8,7 +8,6 @@ import {
   CheckCircle,
   Zap,
   Code2,
-  BookOpen,
   Copy,
   Check,
   Sliders,
@@ -184,16 +183,50 @@ export function App() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-16 overflow-hidden">
-        {/* Glow backdrop */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
+      <section className="relative pt-24 pb-24 lg:py-32 overflow-hidden">
+        {/* Architectural Background Square Grid across the layout */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-35"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(30, 41, 59, 0.45) 1px, transparent 1px), linear-gradient(to bottom, rgba(30, 41, 59, 0.45) 1px, transparent 1px)',
+            backgroundSize: '140px 140px',
+            maskImage: 'radial-gradient(ellipse 85% 75% at 50% 50%, black 35%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 85% 75% at 50% 50%, black 35%, transparent 100%)'
+          }}
+        />
 
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium mb-6">
-            <Sparkles size={13} className="text-blue-400" />
-            <span>Interactive Typography Devtool for Web Projects</span>
+        {/* Glow backdrop */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
+
+        {/* Distributed Background Stat Squares across the layout (Desktop) */}
+        <div className="hidden lg:block pointer-events-none absolute inset-0 max-w-7xl mx-auto">
+          {/* Top-Left Square */}
+          <div className="absolute top-2 left-4 xl:left-6 w-[170px] h-[170px] xl:w-[190px] xl:h-[190px] aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/50 via-slate-900/20 to-transparent flex flex-col items-center justify-center p-4 text-center">
+            <div className="font-heading font-black text-4xl xl:text-5xl text-white/85 tracking-tight">100+</div>
+            <div className="text-xs xl:text-sm font-medium text-slate-400 mt-2 leading-snug">Google Fonts Built-in</div>
           </div>
 
+          {/* Top-Right Square */}
+          <div className="absolute top-4 right-4 xl:right-6 w-[170px] h-[170px] xl:w-[190px] xl:h-[190px] aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/50 via-slate-900/20 to-transparent flex flex-col items-center justify-center p-4 text-center">
+            <div className="font-heading font-black text-4xl xl:text-5xl text-blue-400/85 tracking-tight">0ms</div>
+            <div className="text-xs xl:text-sm font-medium text-slate-400 mt-2 leading-snug">Zero Rebuild Time</div>
+          </div>
+
+          {/* Bottom-Left Square */}
+          <div className="absolute bottom-2 left-10 xl:left-16 w-[170px] h-[170px] xl:w-[190px] xl:h-[190px] aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/50 via-slate-900/20 to-transparent flex flex-col items-center justify-center p-4 text-center">
+            <div className="font-heading font-black text-4xl xl:text-5xl text-indigo-400/85 tracking-tight">Auto</div>
+            <div className="text-xs xl:text-sm font-medium text-slate-400 mt-2 leading-snug">Tailwind CSS Detection</div>
+          </div>
+
+          {/* Bottom-Right Square - Extra Large for 100% Open Source & Free */}
+          <div className="absolute bottom-2 right-6 xl:right-12 w-[195px] h-[195px] xl:w-[220px] xl:h-[220px] aspect-square rounded-none border border-emerald-500/30 bg-gradient-to-b from-emerald-950/35 via-slate-900/25 to-transparent flex flex-col items-center justify-center p-5 text-center">
+            <div className="font-heading font-black text-5xl xl:text-6xl text-emerald-400 tracking-tight">100%</div>
+            <div className="text-sm xl:text-base font-bold text-slate-200 mt-2 leading-snug">Open Source &amp; Free</div>
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h1 className="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white leading-[1.1] mb-6">
             Stop thinking about what it would look like—<br className="hidden sm:inline" />
             <span
@@ -253,23 +286,23 @@ export function App() {
             </a>
           </div>
 
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 max-w-4xl mx-auto">
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-              <div className="font-heading font-bold text-2xl text-white">100+</div>
-              <div className="text-xs text-slate-400 mt-1">Google Fonts Built-in</div>
+          {/* Mobile / Tablet fallback grid of straight background squares */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-14 lg:hidden max-w-3xl mx-auto">
+            <div className="aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/40 via-slate-900/15 to-transparent flex flex-col items-center justify-center p-4 text-center">
+              <div className="font-heading font-black text-3xl sm:text-4xl text-white/85">100+</div>
+              <div className="text-xs sm:text-sm font-medium text-slate-400 mt-1.5">Google Fonts Built-in</div>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-              <div className="font-heading font-bold text-2xl text-blue-400">0ms</div>
-              <div className="text-xs text-slate-400 mt-1">Zero Rebuild Time</div>
+            <div className="aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/40 via-slate-900/15 to-transparent flex flex-col items-center justify-center p-4 text-center">
+              <div className="font-heading font-black text-3xl sm:text-4xl text-blue-400/85">0ms</div>
+              <div className="text-xs sm:text-sm font-medium text-slate-400 mt-1.5">Zero Rebuild Time</div>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-              <div className="font-heading font-bold text-2xl text-indigo-400">Auto</div>
-              <div className="text-xs text-slate-400 mt-1">Tailwind CSS Detection</div>
+            <div className="aspect-square rounded-none border border-slate-800/50 bg-gradient-to-b from-slate-900/40 via-slate-900/15 to-transparent flex flex-col items-center justify-center p-4 text-center">
+              <div className="font-heading font-black text-3xl sm:text-4xl text-indigo-400/85">Auto</div>
+              <div className="text-xs sm:text-sm font-medium text-slate-400 mt-1.5">Tailwind CSS Detection</div>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 text-center">
-              <div className="font-heading font-bold text-2xl text-emerald-400">100%</div>
-              <div className="text-xs text-slate-400 mt-1">Open Source & Free</div>
+            <div className="aspect-square rounded-none border border-emerald-500/30 bg-gradient-to-b from-emerald-950/35 via-slate-900/25 to-transparent flex flex-col items-center justify-center p-4 text-center">
+              <div className="font-heading font-black text-4xl sm:text-5xl text-emerald-400">100%</div>
+              <div className="text-sm sm:text-base font-bold text-slate-200 mt-1.5">Open Source &amp; Free</div>
             </div>
           </div>
         </div>
@@ -303,7 +336,13 @@ export function App() {
             </div>
             <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
               <span>Category: Performance</span>
-              <span className="text-blue-400 font-semibold">Active Engine →</span>
+              <button
+                type="button"
+                onClick={triggerDevtool}
+                className="text-blue-400 hover:text-blue-300 font-semibold transition cursor-pointer"
+              >
+                Open Live Engine →
+              </button>
             </div>
           </div>
 
@@ -366,10 +405,6 @@ export function App() {
       {/* Documentation Section */}
       <section id="docs" className="py-20 max-w-6xl mx-auto px-6 scroll-mt-16">
         <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono mb-4">
-            <BookOpen size={13} />
-            <span>Developer Guide & API Reference</span>
-          </div>
           <h2 className="font-heading font-bold text-3xl sm:text-4xl text-white tracking-tight">
             Documentation
           </h2>
