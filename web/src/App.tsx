@@ -7,13 +7,13 @@ import { Hero } from './Hero';
 import { TypeLine } from './TypeLine';
 import {
   BODY_FONTS,
-  DEFAULT_BODY,
-  DEFAULT_HEADING,
   HEADING_FONTS,
   applySiteFonts,
   findFont,
   loadSiteFont,
-  preloadSiteFonts
+  preloadSiteFonts,
+  readAppliedFonts,
+  saveAppliedFonts
 } from './fonts';
 import { GITHUB_URL, NPM_URL } from './links';
 
@@ -29,8 +29,22 @@ const triggerDevtool = () => {
 };
 
 export function App() {
-  const [headingFamily, setHeadingFamily] = useState(DEFAULT_HEADING);
-  const [bodyFamily, setBodyFamily] = useState(DEFAULT_BODY);
+  // Like the devtool: picks are a live preview until they are applied, and applied fonts are remembered.
+  const [applied, setApplied] = useState(readAppliedFonts);
+  const [headingFamily, setHeadingFamily] = useState(applied.heading);
+  const [bodyFamily, setBodyFamily] = useState(applied.body);
+  const pending = headingFamily !== applied.heading || bodyFamily !== applied.body;
+
+  const applyFonts = () => {
+    const next = { heading: headingFamily, body: bodyFamily };
+    setApplied(next);
+    saveAppliedFonts(next);
+  };
+
+  const cancelFonts = () => {
+    setHeadingFamily(applied.heading);
+    setBodyFamily(applied.body);
+  };
 
   const heading = findFont(HEADING_FONTS, headingFamily);
   const body = findFont(BODY_FONTS, bodyFamily);
@@ -109,6 +123,10 @@ export function App() {
           body={body}
           onHeading={setHeadingFamily}
           onBody={setBodyFamily}
+          applied={applied}
+          pending={pending}
+          onApply={applyFonts}
+          onCancel={cancelFonts}
           onOpenDevtool={triggerDevtool}
         />
         <TypeLine heading={heading} />

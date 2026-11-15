@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, CSSProperties } from 'react';
 import { generateFontExport } from '@font-tastic/core';
 import { Check, Copy } from 'lucide-react';
-import { BODY_FONTS, FontOption, HEADING_FONTS, MONO_FONT, fontStack } from './fonts';
+import { AppliedFonts, BODY_FONTS, FontOption, HEADING_FONTS, MONO_FONT, fontStack } from './fonts';
 import { INSTALL_CMD } from './links';
 
 const STEPS = [
   { id: 'heading', tab: 'Headings', line: 'Pick a heading face. This page is the preview.' },
   { id: 'body', tab: 'Body', line: 'Now the body text. Everything below changes with it.' },
-  { id: 'export', tab: 'Export', line: 'Copy the config. That is the whole workflow.' }
+  { id: 'apply', tab: 'Apply', line: 'Apply it. The page keeps your fonts, even after a reload.' },
+  { id: 'export', tab: 'Export', line: 'Or copy the config and commit it to your project.' }
 ] as const;
 
 const LAST = STEPS.length - 1;
@@ -43,10 +44,24 @@ interface HeroProps {
   body: FontOption;
   onHeading: (family: string) => void;
   onBody: (family: string) => void;
+  applied: AppliedFonts;
+  pending: boolean;
+  onApply: () => void;
+  onCancel: () => void;
   onOpenDevtool: () => void;
 }
 
-export function Hero({ heading, body, onHeading, onBody, onOpenDevtool }: HeroProps) {
+export function Hero({
+  heading,
+  body,
+  onHeading,
+  onBody,
+  applied,
+  pending,
+  onApply,
+  onCancel,
+  onOpenDevtool
+}: HeroProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -212,6 +227,52 @@ export function Hero({ heading, body, onHeading, onBody, onOpenDevtool }: HeroPr
               {...inertWhen(!pinned && active !== 2)}
             >
               <div className="ui-frame-head">
+                <span className="ui-dot" style={{ background: '#f59e0b' }} />
+                <span className="ui-frame-title">Apply</span>
+                <span className="ui-frame-target">{pending ? 'Unsaved preview' : 'Up to date'}</span>
+              </div>
+              <dl className="ui-facts">
+                <div>
+                  <dt>Headings</dt>
+                  <dd>
+                    {heading.family !== applied.heading && <s>{applied.heading}</s>}
+                    {heading.family}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Body and UI</dt>
+                  <dd>
+                    {body.family !== applied.body && <s>{applied.body}</s>}
+                    {body.family}
+                  </dd>
+                </div>
+              </dl>
+              <p className="ui-note" aria-live="polite">
+                {pending
+                  ? 'What you see is a preview. Apply keeps it; cancel puts back what was there.'
+                  : 'These fonts are applied and saved in this browser. Reload the page: they stay.'}
+              </p>
+              <div className="ui-actions">
+                <button type="button" className="ui-btn" disabled={!pending} onClick={onCancel}>
+                  Don't apply
+                </button>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--accent"
+                  disabled={!pending}
+                  onClick={onApply}
+                >
+                  {pending ? 'Apply fonts' : 'Applied'}
+                </button>
+              </div>
+            </div>
+            <div
+              className="ui-frame"
+              data-ui
+              data-current={active === 3 || undefined}
+              {...inertWhen(!pinned && active !== 3)}
+            >
+              <div className="ui-frame-head">
                 <span className="ui-dot" style={{ background: '#10b981' }} />
                 <span className="ui-frame-title">Export</span>
                 <div className="ui-seg" role="group" aria-label="Export format">
@@ -263,7 +324,7 @@ export function Hero({ heading, body, onHeading, onBody, onOpenDevtool }: HeroPr
         <div className="hero-support">
           <p>
             Font-Tastic is an open-source devtool that swaps the fonts on your real UI while you
-            watch, then hands you the config.
+            watch, applies the ones you pick, and hands you the config.
           </p>
           <div className="hero-actions">
             <div className="install">

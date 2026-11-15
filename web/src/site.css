@@ -244,7 +244,7 @@
 
 .hero-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -389,7 +389,7 @@
   }
 
   .hero--pinned {
-    height: calc(100svh + 110svh);
+    height: calc(100svh + 140svh);
   }
 
   .hero--pinned .hero-stage {
@@ -930,6 +930,59 @@
   font-size: 15px;
   font-weight: 500;
   text-align: right;
+}
+
+.ui-facts dd s {
+  margin-right: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ui-note {
+  flex: 1;
+  padding: 14px 12px 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.ui-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ui-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 0.15s, transform 0.15s var(--ease), opacity 0.15s;
+}
+
+.ui-btn:hover:not(:disabled) {
+  background: #334155;
+}
+
+.ui-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ui-btn--accent {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.ui-btn--accent:hover:not(:disabled) {
+  background: #1d4ed8;
 }
 
 .ui-facts-wait {
