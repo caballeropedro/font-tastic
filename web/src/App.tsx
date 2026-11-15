@@ -13,8 +13,26 @@ import {
   Sliders,
   Layers,
   Keyboard,
-  Mail
+  Mail,
+  Megaphone
 } from 'lucide-react';
+import { RELEASES, ChangeKind } from './changelog';
+
+const CHANGE_KIND_STYLES: Record<ChangeKind, { label: string; className: string }> = {
+  new: { label: 'New', className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  improved: { label: 'Improved', className: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20' },
+  fixed: { label: 'Fixed', className: 'bg-amber-500/10 text-amber-300 border-amber-500/20' },
+  docs: { label: 'Release', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' }
+};
+
+const formatReleaseDate = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+const LATEST_RELEASE = RELEASES[0];
 
 const DOC_SNIPPETS = {
   install: `pnpm add -D @font-tastic/devtool
@@ -146,7 +164,7 @@ export function App() {
               Font<span className="text-blue-500">-Tastic</span>
             </span>
             <span className="hidden sm:inline-flex text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-              v0.1.2-alpha
+              v{LATEST_RELEASE.version}-alpha
             </span>
           </div>
 
@@ -156,6 +174,12 @@ export function App() {
               className="hidden sm:inline-flex text-xs font-medium text-slate-300 hover:text-white transition"
             >
               Documentation
+            </a>
+            <a
+              href="#changelog"
+              className="hidden sm:inline-flex text-xs font-medium text-slate-300 hover:text-white transition"
+            >
+              What's New
             </a>
             <a
               href="mailto:me@anthonwood.com"
@@ -227,6 +251,16 @@ export function App() {
         </div>
 
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+          <a
+            href="#changelog"
+            className="inline-flex items-center gap-2 mb-8 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 hover:border-blue-500/40 text-xs text-slate-300 hover:text-white transition"
+          >
+            <Megaphone size={13} className="text-blue-400" />
+            <span className="font-mono text-blue-400">v{LATEST_RELEASE.version}</span>
+            <span className="text-slate-600">·</span>
+            <span>{LATEST_RELEASE.title}</span>
+            <ArrowRight size={12} className="text-slate-500" />
+          </a>
           <h1 className="font-heading font-black text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white leading-[1.1] mb-6">
             Stop thinking about what it would look like—<br className="hidden sm:inline" />
             <span
@@ -607,6 +641,65 @@ export function App() {
         </div>
       </section>
 
+      {/* What's New / Changelog Section */}
+      <section id="changelog" className="py-20 max-w-4xl mx-auto px-6 scroll-mt-16">
+        <div className="text-center mb-14">
+          <h2 className="font-heading font-bold text-3xl sm:text-4xl text-white tracking-tight">
+            What's New
+          </h2>
+          <p className="font-sans text-slate-400 text-sm sm:text-base mt-2 max-w-2xl mx-auto">
+            Every release of Font-Tastic and what changed in it, newest first.
+          </p>
+        </div>
+
+        <ol className="relative border-l border-slate-800 ml-2 sm:ml-4 space-y-12">
+          {RELEASES.map((release, idx) => (
+            <li key={release.version} className="relative pl-6 sm:pl-10">
+              <span
+                className={`absolute -left-[7px] top-1.5 w-3.5 h-3.5 rounded-full border-2 ${
+                  idx === 0 ? 'bg-blue-500 border-blue-300 shadow-lg shadow-blue-500/40' : 'bg-slate-900 border-slate-600'
+                }`}
+              />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
+                <span className="font-mono text-sm font-semibold text-blue-400">v{release.version}</span>
+                {idx === 0 && (
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    Latest
+                  </span>
+                )}
+                <time dateTime={release.date} className="text-xs text-slate-500">
+                  {formatReleaseDate(release.date)}
+                </time>
+              </div>
+              <h3 className="font-heading font-bold text-xl sm:text-2xl text-white mb-2">{release.title}</h3>
+              <p className="font-sans text-slate-400 text-sm leading-relaxed mb-5">{release.summary}</p>
+
+              <ul className="space-y-3">
+                {release.changes.map((change) => {
+                  const kind = CHANGE_KIND_STYLES[change.kind];
+                  return (
+                    <li
+                      key={change.title}
+                      className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4"
+                    >
+                      <span
+                        className={`self-start shrink-0 w-20 text-center text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${kind.className}`}
+                      >
+                        {kind.label}
+                      </span>
+                      <div>
+                        <div className="text-sm font-semibold text-white">{change.title}</div>
+                        <p className="text-xs text-slate-400 leading-relaxed mt-1">{change.description}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* Pricing Table Section */}
       <section id="pricing" className="py-16 max-w-4xl mx-auto px-6">
         <div className="text-center mb-10">
@@ -686,6 +779,12 @@ export function App() {
               className="hover:text-slate-300 transition"
             >
               Documentation
+            </a>
+            <a
+              href="#changelog"
+              className="hover:text-slate-300 transition"
+            >
+              What's New
             </a>
             <a
               href="mailto:me@anthonwood.com"
