@@ -70,3 +70,34 @@ export function applySiteFonts(heading: FontOption, body: FontOption) {
   }
   el.textContent = `:root { ${rules.join(' ')} }`;
 }
+
+export interface AppliedFonts {
+  heading: string;
+  body: string;
+}
+
+const APPLIED_KEY = 'font-tastic-site:applied';
+
+/** The fonts the visitor applied on an earlier visit, or the defaults. */
+export function readAppliedFonts(): AppliedFonts {
+  const fallback = { heading: DEFAULT_HEADING, body: DEFAULT_BODY };
+  try {
+    const raw = window.localStorage.getItem(APPLIED_KEY);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw) as Partial<AppliedFonts>;
+    return {
+      heading: findFont(HEADING_FONTS, String(saved.heading)).family,
+      body: findFont(BODY_FONTS, String(saved.body)).family
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export function saveAppliedFonts(fonts: AppliedFonts) {
+  try {
+    window.localStorage.setItem(APPLIED_KEY, JSON.stringify(fonts));
+  } catch {
+    // Storage can be blocked; the fonts still apply for this visit.
+  }
+}
