@@ -17,6 +17,63 @@ export interface Release {
 // Newest first. Add a new entry at the top for every release.
 export const RELEASES: Release[] = [
   {
+    version: '0.2.0',
+    date: '2026-11-15',
+    title: 'A faster, calmer panel',
+    summary:
+      'The devtool panel was redesigned around browsing: more fonts on screen, the keyboard does the previewing, and Apply always sits in the same place.',
+    changes: [
+      {
+        kind: 'improved',
+        title: 'Redesigned font list',
+        description:
+          'Compact rows show each font name set in its own face, so several times more fonts fit on screen. Fonts are fetched only as they scroll into view instead of all at once.'
+      },
+      {
+        kind: 'new',
+        title: 'Keyboard browsing',
+        description:
+          'Press / to search, then use the up and down arrows to walk the list and preview each font on your page. Esc closes the panel.'
+      },
+      {
+        kind: 'improved',
+        title: 'Apply bar that stays put',
+        description:
+          'Apply and Discard now live in a bar at the bottom of the panel with a status line, so starting a preview no longer shifts the layout.'
+      },
+      {
+        kind: 'improved',
+        title: 'Channels show their current font',
+        description:
+          'The Headings, Body & UI and Code switcher displays the font each channel is using. Group Boxes is now Outlines, and the ON/OFF switch is now Original, for comparing with your project fonts.'
+      },
+      {
+        kind: 'new',
+        title: 'Remembers where you left it',
+        description:
+          'The panel keeps its open state, tab and channel across reloads in the same browser tab.'
+      },
+      {
+        kind: 'improved',
+        title: 'Works on small screens',
+        description:
+          'On phones the panel becomes a bottom sheet that leaves your page visible above it.'
+      },
+      {
+        kind: 'improved',
+        title: 'Smarter export',
+        description:
+          'The Export tab preselects the format that matches your detected setup and uses the CSS variable names your project already defines.'
+      },
+      {
+        kind: 'fixed',
+        title: 'Spacing and size fields',
+        description:
+          'Negative letter spacing can be typed directly, dragging works on touch screens, and double-clicking a label resets it.'
+      }
+    ]
+  },
+  {
     version: '0.1.2',
     date: '2026-11-14',
     title: 'Bring your own fonts',
