@@ -158,8 +158,9 @@ export function Docs({ heading, body }: { heading: FontOption; body: FontOption 
           <h3>It finds your fonts for you.</h3>
           <p>
             Font-Tastic reads <code>:root</code> and your stylesheets for font variables, and checks
-            whether Tailwind is in use. Overrides live in memory, so a reset puts back exactly what
-            you had. Open and close it with <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>F</kbd>, or{' '}
+            whether Tailwind is in use. Changes are a preview until you press Apply, which saves
+            them in your browser so they stay on while you work. A reset puts back exactly what you
+            had. Open and close it with <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>F</kbd>, or{' '}
             <kbd>Cmd</kbd> on a Mac.
           </p>
         </div>
