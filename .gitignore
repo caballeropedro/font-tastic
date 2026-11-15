@@ -7,3 +7,6 @@ dist
 .env.*
 .npmrc
 .vercel
+.taste-skill
+*.tsbuildinfo
+*.log
