@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --font-heading: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Hanken Grotesk', sans-serif;
+  --font-body: 'Hanken Grotesk', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   color-scheme: dark;
 }
@@ -51,7 +51,7 @@ body,
 
 body {
   font-family: var(--font-body);
-  background-color: #0b0f19;
+  background-color: #020617;
   color: #f3f4f6;
   margin: 0;
   -webkit-font-smoothing: antialiased;
@@ -63,38 +63,4 @@ h1, h2, h3, h4, h5, h6 {
 
 code, pre {
   font-family: var(--font-mono);
-}
-
-.hero-dynamic-font {
-  font-family: var(--hero-font-family) !important;
-}
-
-@keyframes heroSlideInFromTop {
-  0% {
-    transform: translateY(-105%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0%);
-    opacity: 1;
-  }
-}
-
-@keyframes heroSlideOutToBottom {
-  0% {
-    transform: translateY(0%);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(105%);
-    opacity: 0;
-  }
-}
-
-.animate-hero-slide-in-down {
-  animation: heroSlideInFromTop 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-hero-slide-out-down {
-  animation: heroSlideOutToBottom 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
