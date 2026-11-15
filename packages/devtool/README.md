@@ -65,11 +65,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ## Features & Keyboard Shortcuts
 
-- **Toggle Drawer:** Press `Ctrl + Shift + F` (`Cmd + Shift + F` on macOS) or click the floating **Font-Tastic** pill.
-- **Channels Tab:** Switch independently between **Headings (`h1–h6`)**, **Body & UI**, and **Code / Mono**, adjust live **Letter Spacing** and **Scale** sliders, and filter fonts by category or tag.
-- **Pairings Tab:** Apply curated designer pairings with 1 click or hit **Randomize**.
-- **Detected Setup Tab:** Inspect discovered `:root` CSS variables, computed element font families, and Tailwind CSS version (`v3` / `v4`).
-- **Export Tab:** Copy ready-to-use snippets for **Tailwind v3**, **Tailwind v4 (`@theme`)**, **CSS Variables**, **`@fontsource` (pnpm)**, or **Next.js (`next/font/google`)**.
+- **Toggle the panel:** `Ctrl + Shift + F` (`Cmd + Shift + F` on macOS) or click the floating **Font-Tastic** pill. `Esc` closes it. The panel remembers whether it was open, and which tab and channel you were on, across reloads.
+- **Fonts tab:** Switch between **Headings**, **Body & UI** and **Code**; each channel shows its current font. Press `/` to search, then `↑` / `↓` to walk the list and preview each font on your page. Drag the **Spacing** and **Size** labels to scrub (double-click to reset), filter by category, or **Import** your own font file or URL.
+- **Apply or discard:** Every change is a live preview until you press **Apply** in the bar at the bottom of the panel, which saves it in the browser. **Discard** returns to the last applied fonts.
+- **Outlines / Original:** **Outlines** marks the text each channel controls; **Original** flips back to your project's fonts to compare.
+- **Pairings tab:** Apply curated heading and body pairings with one click, or hit **Shuffle**.
+- **Saved tab:** Every applied set is kept so you can restore it later.
+- **Detected tab:** The fonts your page uses now, the selectors each channel targets, your `:root` font variables and the Tailwind CSS version (`v3` / `v4`).
+- **Export tab:** Copy ready-to-use snippets for **Tailwind v4 (`@theme`)**, **Tailwind v3**, **CSS variables**, **`next/font`** or **`@fontsource`**. The format matching your detected setup is preselected.
 
 ---
 

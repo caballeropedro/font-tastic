@@ -22,20 +22,15 @@ import {
 } from '@font-tastic/core';
 import { DEVTOOL_CSS } from './styles';
 import {
-  Type,
   X,
   Search,
-  Sparkles,
+  Shuffle,
   RotateCcw,
   Check,
   Copy,
-  Code,
-  Layers,
-  Info,
   Eye,
   EyeOff,
-  BoxSelect,
-  History,
+  SquareDashed,
   Trash2,
   Upload,
   Link,
@@ -47,47 +42,107 @@ export interface FontTasticProps {
   position?: 'bottom-right' | 'bottom-left';
 }
 
-const GROUP_COLORS: Record<string, string> = {
+type TabId = 'browse' | 'pairings' | 'history' | 'detected' | 'export';
+type ExportFormat = 'tailwind-v3' | 'tailwind-v4' | 'css-vars' | 'fontsource' | 'nextjs';
+type CategoryFilter = FontCategory | 'all' | 'custom';
+
+const UI_STORAGE_KEY = 'font-tastic:ui';
+
+const FALLBACK_COLORS: Record<string, string> = {
   heading: '#3b82f6',
   body: '#a855f7',
   mono: '#10b981'
 };
 
-function LetterSpacingIcon() {
+const CHANNELS: { id: string; label: string }[] = [
+  { id: 'heading', label: 'Headings' },
+  { id: 'body', label: 'Body & UI' },
+  { id: 'mono', label: 'Code' }
+];
+
+const CATEGORY_LABELS: Record<CategoryFilter, string> = {
+  all: 'All',
+  custom: 'Imported',
+  'sans-serif': 'Sans',
+  serif: 'Serif',
+  display: 'Display',
+  monospace: 'Mono',
+  handwriting: 'Script'
+};
+
+const CATEGORY_ORDER: CategoryFilter[] = ['all', 'custom', 'sans-serif', 'serif', 'display', 'monospace', 'handwriting'];
+
+const EXPORT_FORMATS: { id: ExportFormat; label: string }[] = [
+  { id: 'tailwind-v4', label: 'Tailwind v4' },
+  { id: 'tailwind-v3', label: 'Tailwind v3' },
+  { id: 'css-vars', label: 'CSS variables' },
+  { id: 'nextjs', label: 'next/font' },
+  { id: 'fontsource', label: 'Fontsource' }
+];
+
+const SPACING_RANGE = { min: -4, max: 12 };
+const SCALE_RANGE = { min: 60, max: 200 };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function genericFor(category?: FontCategory): string {
+  if (category === 'serif') return 'serif';
+  if (category === 'monospace') return 'monospace';
+  return 'sans-serif';
+}
+
+function primaryFamily(stack?: string): string {
+  if (!stack) return '';
+  return (stack.split(',')[0] || '').trim().replace(/^['"]+|['"]+$/g, '');
+}
+
+function parseSpacing(raw?: string): number {
+  if (!raw || raw === 'normal') return 0;
+  const parsed = parseFloat(raw);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function isCustomized(state?: ChannelState): boolean {
+  if (!state) return false;
+  return Boolean(state.selectedFont || parseSpacing(state.letterSpacing) !== 0 || (state.fontSizeScale ?? 1) !== 1);
+}
+
+function sameChannelLook(a?: ChannelState, b?: ChannelState): boolean {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <line x1="2" y1="2.5" x2="2" y2="13.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="14" y1="2.5" x2="14" y2="13.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      <path
-        d="M5.5 11.5L8 4.5L10.5 11.5M6.3 9.5H9.7"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    (a?.selectedFont || null) === (b?.selectedFont || null) &&
+    parseSpacing(a?.letterSpacing) === parseSpacing(b?.letterSpacing) &&
+    (a?.fontSizeScale ?? 1) === (b?.fontSizeScale ?? 1)
   );
 }
 
-function FontSizeScaleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M2.5 12L5 5.5L7.5 12M3.2 10.2H6.8"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.5 12L11.5 3.5L14.5 12M9.4 9.6H13.6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function describeTweaks(state?: ChannelState): string {
+  const parts: string[] = [];
+  const scale = state?.fontSizeScale ?? 1;
+  const spacing = parseSpacing(state?.letterSpacing);
+  if (scale !== 1) parts.push(`${Math.round(scale * 100)}%`);
+  if (spacing !== 0) parts.push(`${spacing > 0 ? '+' : ''}${spacing}px`);
+  return parts.join(', ');
+}
+
+function formatSavedTime(timestamp: number): string {
+  const diffMin = Math.floor((Date.now() - timestamp) / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const date = new Date(timestamp);
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (date.toDateString() === new Date().toDateString()) return `Today, ${time}`;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+}
+
+function readUiState(): { open?: boolean; tab?: TabId; channel?: string } {
+  try {
+    const raw = window.sessionStorage.getItem(UI_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 function FontTasticLogo({ size = 20 }: { size?: number }) {
@@ -99,6 +154,7 @@ function FontTasticLogo({ size = 20 }: { size?: number }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ flexShrink: 0 }}
+      aria-hidden="true"
     >
       <rect x="6" y="6" width="108" height="108" rx="22" fill="#0F172A" stroke="#334155" strokeWidth="4" />
       <path
@@ -115,14 +171,142 @@ function FontTasticLogo({ size = 20 }: { size?: number }) {
   );
 }
 
+/**
+ * Text set in a given family. The font file is only requested once the
+ * element scrolls near the viewport, so opening the list does not fetch
+ * the whole catalog at once.
+ */
+function Specimen({
+  family,
+  category,
+  className,
+  children
+}: {
+  family: string;
+  category?: FontCategory;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      loadGoogleFont(family);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadGoogleFont(family);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '160px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [family]);
+
+  return (
+    <span ref={ref} className={className} style={{ fontFamily: `"${family}", ${genericFor(category)}` }}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Number field whose label can be dragged sideways to scrub the value
+ * (double-click the label to reset). Typing is free-form and commits
+ * every time the text parses to a number.
+ */
+function ScrubField({
+  label,
+  unit,
+  value,
+  defaultValue,
+  min,
+  max,
+  step,
+  pixelsPerStep,
+  onChange
+}: {
+  label: string;
+  unit: string;
+  value: number;
+  defaultValue: number;
+  min: number;
+  max: number;
+  step: number;
+  pixelsPerStep: number;
+  onChange: (next: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const drag = useRef<{ startX: number; startValue: number } | null>(null);
+
+  const commit = (next: number) => {
+    const rounded = Math.round(clamp(next, min, max) / step) * step;
+    onChange(Number(rounded.toFixed(2)));
+  };
+
+  return (
+    <label className="ft-field">
+      <span
+        className="ft-field-label"
+        title={`Drag to adjust ${label.toLowerCase()} · double-click to reset`}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = { startX: e.clientX, startValue: value };
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          const steps = Math.round((e.clientX - drag.current.startX) / pixelsPerStep);
+          commit(drag.current.startValue + steps * step);
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+        }}
+        onDoubleClick={() => {
+          setDraft(null);
+          onChange(defaultValue);
+        }}
+      >
+        {label}
+      </span>
+      <input
+        type="number"
+        inputMode="decimal"
+        step={step}
+        min={min}
+        max={max}
+        value={draft ?? String(value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const parsed = parseFloat(e.target.value);
+          if (!Number.isNaN(parsed)) commit(parsed);
+        }}
+        onBlur={() => setDraft(null)}
+      />
+      <span className="ft-field-unit">{unit}</span>
+    </label>
+  );
+}
+
 export function FontTastic({ initialOpen = false, position = 'bottom-right' }: FontTasticProps) {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
-  const [activeTab, setActiveTab] = useState<'browse' | 'pairings' | 'history' | 'detected' | 'export'>('browse');
+  const [activeTab, setActiveTab] = useState<TabId>('browse');
   const [activeChannelId, setActiveChannelId] = useState<string>('heading');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<FontCategory | 'all' | 'custom'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [exportFramework, setExportFramework] = useState<'tailwind-v3' | 'tailwind-v4' | 'css-vars' | 'fontsource' | 'nextjs'>('tailwind-v3');
+  const [exportFramework, setExportFramework] = useState<ExportFormat>('css-vars');
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [isMac, setIsMac] = useState(false);
 
   // Custom Font Import state
   const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
@@ -145,10 +329,14 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   const [overridesEnabled, setOverridesEnabled] = useState(true);
   const [highlightGroups, setHighlightGroups] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<TypographyHistoryEntry[]>([]);
-  const [justAppliedToast, setJustAppliedToast] = useState(false);
+  const [justApplied, setJustApplied] = useState(false);
 
-  // Manager reference
   const managerRef = useRef<FontOverrideManager | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const openedByUser = useRef(false);
 
   const syncFromManager = (manager: FontOverrideManager) => {
     setChannelStates(manager.getAllStates());
@@ -157,6 +345,16 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     setOverridesEnabled(manager.isOverridesEnabled());
     setHighlightGroups(manager.isHighlightGroupsEnabled());
     setHistoryEntries(manager.getHistory());
+  };
+
+  const openDrawer = () => {
+    openedByUser.current = true;
+    setIsOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setIsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
   // Initialize styles, detector, and manager
@@ -171,10 +369,16 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     }
     styleEl.textContent = DEVTOOL_CSS;
 
-    // 1b. Hydrate and subscribe to custom fonts
+    // 1b. Restore where the user left the panel in this browser tab
+    const ui = readUiState();
+    if (typeof ui.open === 'boolean') setIsOpen(ui.open);
+    if (ui.tab) setActiveTab(ui.tab);
+    if (ui.channel) setActiveChannelId(ui.channel);
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || ''));
+
+    // 1c. Hydrate and subscribe to custom fonts
     const initialCustom = getCustomFonts();
     setCustomFonts(initialCustom);
-    initialCustom.forEach((cf) => loadGoogleFont(cf.family));
     const unsubscribeCustom = subscribeCustomFonts((updated) => {
       setCustomFonts(updated);
     });
@@ -182,6 +386,9 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     // 2. Detect project typography
     const detected = detectProjectTypography();
     setProjectState(detected);
+    setExportFramework(
+      detected.tailwindVersion === 'v4' ? 'tailwind-v4' : detected.isTailwindDetected ? 'tailwind-v3' : 'css-vars'
+    );
 
     // 3. Initialize Override Manager
     const manager = new FontOverrideManager(detected.recommendedChannels);
@@ -197,10 +404,12 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
         e.preventDefault();
+        openedByUser.current = true;
         setIsOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
+    setMounted(true);
 
     return () => {
       unsubscribe();
@@ -209,18 +418,72 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     };
   }, []);
 
-  // Combined & filtered fonts list (Custom fonts first, then Google Fonts catalog)
-  const filteredFonts = useMemo(() => {
+  // Remember panel state across reloads (per browser tab)
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      window.sessionStorage.setItem(
+        UI_STORAGE_KEY,
+        JSON.stringify({ open: isOpen, tab: activeTab, channel: activeChannelId })
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }, [mounted, isOpen, activeTab, activeChannelId]);
+
+  // Move focus into the panel when the user opens it
+  useEffect(() => {
+    if (isOpen && openedByUser.current) {
+      drawerRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setConfirmClear(false);
+  }, [activeTab]);
+
+  // Keep the active channel's current font in view when the list is (re)shown
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'browse') return;
+    const list = listRef.current;
+    const scroller = list?.parentElement;
+    const row = list?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!scroller) return;
+    if (!row) {
+      scroller.scrollTop = 0;
+      return;
+    }
+    const rowBox = row.getBoundingClientRect();
+    const box = scroller.getBoundingClientRect();
+    if (rowBox.top < box.top || rowBox.bottom > box.bottom) {
+      scroller.scrollTop += rowBox.top - box.top - (box.height - rowBox.height) / 2;
+    }
+  }, [isOpen, activeTab, activeChannelId, mounted]);
+
+  const channelColor = (id: string) =>
+    projectState?.recommendedChannels.find((c) => c.id === id)?.color || FALLBACK_COLORS[id] || '#949494';
+
+  const allFonts = useMemo(() => {
     const customNames = new Set(customFonts.map((cf) => cf.family.toLowerCase()));
     const combined: FontItem[] = [
       ...customFonts,
       ...GOOGLE_FONTS_CATALOG.filter((f) => !customNames.has(f.family.toLowerCase()))
     ];
+    return combined;
+  }, [customFonts]);
 
-    return combined.filter((f) => {
+  const fontCategory = (family?: string | null) =>
+    family ? allFonts.find((f) => f.family === family)?.category : undefined;
+
+  // Combined & filtered fonts list (Custom fonts first, then Google Fonts catalog)
+  const filteredFonts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return allFonts.filter((f) => {
       const matchesSearch =
-        f.family.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        f.tags?.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+        !query ||
+        f.family.toLowerCase().includes(query) ||
+        f.category.includes(query) ||
+        f.tags?.some((t) => t.toLowerCase().includes(query));
 
       if (selectedCategory === 'custom') {
         return matchesSearch && Boolean(f.isCustom);
@@ -228,7 +491,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
       const matchesCat = selectedCategory === 'all' || f.category === selectedCategory;
       return matchesSearch && matchesCat;
     });
-  }, [customFonts, searchQuery, selectedCategory]);
+  }, [allFonts, searchQuery, selectedCategory]);
 
   // Handle file selection for custom font import
   const handleFileChosen = (file: File | null) => {
@@ -238,7 +501,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
       return;
     }
     if (!/\.(woff2?|ttf|otf)$/i.test(file.name)) {
-      setImportError('Please select a valid font file (.woff2, .woff, .ttf, or .otf).');
+      setImportError('That file is not a font. Choose a .woff2, .woff, .ttf or .otf file.');
       return;
     }
     setSelectedFile(file);
@@ -259,33 +522,37 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     }
   };
 
+  // Active channel config & state
+  const currentChannelState = channelStates.get(activeChannelId);
+  const currentAppliedState = appliedStates.get(activeChannelId);
+  const activeChannelLabel = CHANNELS.find((c) => c.id === activeChannelId)?.label || 'channel';
+
+  // Handle selecting a font for live preview
+  const handleSelectFont = async (fontFamily: string) => {
+    if (!managerRef.current) return;
+    setJustApplied(false);
+    await managerRef.current.applyFont(activeChannelId, fontFamily);
+  };
+
   // Submit custom font import (file or URL)
   const handleImportSubmit = async () => {
     setImportError(null);
+    if (importMode === 'file' && !selectedFile) {
+      setImportError('Choose a font file first.');
+      return;
+    }
+    if (importMode === 'url' && !importUrl.trim()) {
+      setImportError('Paste a stylesheet URL or a direct link to a font file.');
+      return;
+    }
+
     setIsImporting(true);
     try {
-      let imported: CustomFontItem;
-      if (importMode === 'file') {
-        if (!selectedFile) {
-          setImportError('Please choose a font file (.woff2, .woff, .ttf, .otf) first.');
-          setIsImporting(false);
-          return;
-        }
-        imported = await importFontFromFile(selectedFile, {
-          family: importFamilyName.trim() || undefined,
-          category: importCategory
-        });
-      } else {
-        if (!importUrl.trim()) {
-          setImportError('Please enter a font stylesheet URL or direct font file URL.');
-          setIsImporting(false);
-          return;
-        }
-        imported = await importFontFromUrl(importUrl, {
-          family: importFamilyName.trim() || undefined,
-          category: importCategory
-        });
-      }
+      const options = { family: importFamilyName.trim() || undefined, category: importCategory };
+      const imported =
+        importMode === 'file' && selectedFile
+          ? await importFontFromFile(selectedFile, options)
+          : await importFontFromUrl(importUrl, options);
 
       // Immediately apply to active channel for live preview
       await handleSelectFont(imported.family);
@@ -300,7 +567,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
         setSelectedCategory('all');
       }
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Failed to import font.');
+      setImportError(err instanceof Error ? err.message : 'The font could not be imported.');
     } finally {
       setIsImporting(false);
     }
@@ -313,25 +580,10 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     }
   };
 
-  // Active channel config & state
-  const currentChannelConfig = useMemo(() => {
-    return projectState?.recommendedChannels.find((c) => c.id === activeChannelId);
-  }, [projectState, activeChannelId]);
-
-  const currentChannelState = channelStates.get(activeChannelId);
-  const currentAppliedState = appliedStates.get(activeChannelId);
-
-  // Handle selecting a font for live preview
-  const handleSelectFont = async (fontFamily: string) => {
-    if (!managerRef.current) return;
-    setJustAppliedToast(false);
-    await managerRef.current.applyFont(activeChannelId, fontFamily);
-  };
-
   // Handle applying a pairing for live preview
   const handleApplyPairing = async (headingFont: string, bodyFont: string) => {
     if (!managerRef.current) return;
-    setJustAppliedToast(false);
+    setJustApplied(false);
     await Promise.all([
       managerRef.current.applyFont('heading', headingFont),
       managerRef.current.applyFont('body', bodyFont)
@@ -342,1064 +594,957 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   const handleConfirmApply = () => {
     if (!managerRef.current) return;
     managerRef.current.applySelectedOptions();
-    setJustAppliedToast(true);
-    setTimeout(() => setJustAppliedToast(false), 2200);
+    setJustApplied(true);
+    setTimeout(() => setJustApplied(false), 2600);
   };
 
   // Discard / Cancel unapplied preview changes
   const handleCancelPreview = () => {
     if (!managerRef.current) return;
     managerRef.current.cancelPendingChanges();
-    setJustAppliedToast(false);
+    setJustApplied(false);
   };
 
-  // Toggle Master ON/OFF
-  const handleToggleMaster = () => {
-    if (!managerRef.current) return;
-    managerRef.current.setOverridesEnabled(!overridesEnabled);
-  };
-
-  // Toggle Group Colored Boxes
-  const handleToggleHighlightGroups = () => {
-    if (!managerRef.current) return;
-    managerRef.current.setHighlightGroups(!highlightGroups);
-  };
-
-  // Shuffle / Randomize pairing
+  // Shuffle to a pairing other than the one currently showing
   const handleShuffle = () => {
-    const randomPair = CURATED_PAIRINGS[Math.floor(Math.random() * CURATED_PAIRINGS.length)];
+    const heading = channelStates.get('heading')?.selectedFont;
+    const body = channelStates.get('body')?.selectedFont;
+    const others = CURATED_PAIRINGS.filter((p) => p.headingFont !== heading || p.bodyFont !== body);
+    const pool = others.length > 0 ? others : CURATED_PAIRINGS;
+    const randomPair = pool[Math.floor(Math.random() * pool.length)];
     if (randomPair) {
       handleApplyPairing(randomPair.headingFont, randomPair.bodyFont);
     }
   };
 
   // Copy code helper
-  const handleCopy = (key: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
+  const handleCopy = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
+      setCopiedKey(null);
+    }
   };
 
   // Export snippets calculation
   const exportData = useMemo(() => {
-    const headingFont = channelStates.get('heading')?.selectedFont || projectState?.computedFonts.heading || 'Space Grotesk';
-    const bodyFont = channelStates.get('body')?.selectedFont || projectState?.computedFonts.body || 'Inter';
-    const monoFont = channelStates.get('mono')?.selectedFont || projectState?.computedFonts.mono || 'JetBrains Mono';
+    const channelVar = (id: string, fallback: string) =>
+      projectState?.recommendedChannels.find((c) => c.id === id)?.targetVar || fallback;
 
     return generateFontExport({
-      headingFont,
-      bodyFont,
-      monoFont,
-      headingVar: currentChannelConfig?.targetVar || '--font-heading',
-      bodyVar: '--font-body',
-      monoVar: '--font-mono'
+      headingFont: channelStates.get('heading')?.selectedFont || projectState?.computedFonts.heading || 'Space Grotesk',
+      bodyFont: channelStates.get('body')?.selectedFont || projectState?.computedFonts.body || 'Inter',
+      monoFont: channelStates.get('mono')?.selectedFont || projectState?.computedFonts.mono || 'JetBrains Mono',
+      headingVar: channelVar('heading', '--font-heading'),
+      bodyVar: channelVar('body', '--font-body'),
+      monoVar: channelVar('mono', '--font-mono')
     });
-  }, [channelStates, projectState, currentChannelConfig]);
+  }, [channelStates, projectState]);
 
-  // Count active overrides
+  const exportBlocks: { key: string; code: string }[] = useMemo(() => {
+    switch (exportFramework) {
+      case 'tailwind-v3':
+        return [{ key: 'tw3', code: exportData.tailwindV3Snippet }];
+      case 'tailwind-v4':
+        return [{ key: 'tw4', code: exportData.tailwindV4Snippet }];
+      case 'css-vars':
+        return [
+          { key: 'html', code: exportData.htmlHeadSnippet },
+          { key: 'css', code: exportData.cssVariablesSnippet }
+        ];
+      case 'fontsource':
+        return [
+          { key: 'fs-cmd', code: exportData.fontsourceInstallCmd },
+          { key: 'fs-imp', code: exportData.fontsourceImports }
+        ];
+      default:
+        return [{ key: 'next', code: exportData.nextConfigSnippet }];
+    }
+  }, [exportFramework, exportData]);
+
+  // Custom properties only: the detector also reports vendor properties such as -webkit-font-smoothing
+  const detectedVariables = useMemo(
+    () => (projectState?.cssVariables || []).filter((v) => v.name.startsWith('--') && !v.name.startsWith('--ft-')),
+    [projectState]
+  );
+
+  // Count channels with an active override
   const activeOverrideCount = useMemo(() => {
     let count = 0;
     channelStates.forEach((st) => {
-      if (
-        st.selectedFont ||
-        (st.letterSpacing && st.letterSpacing !== '0px' && st.letterSpacing !== 'normal') ||
-        (st.fontSizeScale && st.fontSizeScale !== 1)
-      ) {
-        count++;
-      }
+      if (isCustomized(st)) count++;
     });
     return count;
   }, [channelStates]);
 
-  const numericLetterSpacing = useMemo(() => {
-    const raw = currentChannelState?.letterSpacing;
-    if (!raw || raw === 'normal') return 0;
-    const parsed = parseFloat(raw);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }, [currentChannelState]);
+  const numericLetterSpacing = parseSpacing(currentChannelState?.letterSpacing);
+  const scalePercent = Math.round((currentChannelState?.fontSizeScale ?? 1) * 100);
+  const shortcutLabel = isMac ? '⌘ ⇧ F' : 'Ctrl Shift F';
+  const sideClass = position === 'bottom-left' ? 'ft-left' : '';
 
-  const numericScale = useMemo(() => {
-    return currentChannelState?.fontSizeScale ?? 1.0;
-  }, [currentChannelState]);
+  // Keyboard handling inside the panel
+  const handleDrawerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const isTyping = target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA';
 
-  const triggerPositionStyle = position === 'bottom-left' ? { left: '20px', right: 'auto' } : { right: '20px', left: 'auto' };
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      if (target === searchRef.current && searchQuery) {
+        setSearchQuery('');
+      } else if (isImportOpen && activeTab === 'browse') {
+        setIsImportOpen(false);
+      } else {
+        closeDrawer();
+      }
+      return;
+    }
+
+    if (e.key === '/' && !isTyping && activeTab === 'browse') {
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+  };
+
+  // Arrow keys walk the font list and preview each font as they go
+  const moveInList = (direction: 1 | -1, fromSearch = false) => {
+    const rows = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('[data-ft-font]') || []);
+    if (rows.length === 0) return;
+    const current = rows.findIndex((row) => row === document.activeElement);
+    const next = fromSearch ? rows[0] : rows[clamp(current + direction, 0, rows.length - 1)];
+    if (!next) return;
+    next.focus();
+    const family = next.getAttribute('data-ft-font');
+    if (family && family !== currentChannelState?.selectedFont) {
+      handleSelectFont(family);
+    }
+  };
+
+  if (!mounted) return null;
+
+  const renderFooter = () => {
+    if (hasPending) {
+      return (
+        <>
+          <div className="ft-status ft-status-pending" role="status">
+            <span className="ft-dot" style={{ background: 'currentColor' }} />
+            <span>Previewing, not saved yet</span>
+          </div>
+          <div className="ft-footer-actions">
+            <button
+              type="button"
+              className="ft-btn"
+              onClick={handleCancelPreview}
+              title="Go back to the last applied fonts"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              className="ft-btn ft-btn-primary"
+              onClick={handleConfirmApply}
+              title="Keep these fonts across reloads (saved in this browser)"
+            >
+              <Check size={14} />
+              Apply
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    if (justApplied) {
+      return (
+        <div className="ft-status ft-status-saved" role="status">
+          <Check size={14} />
+          <span>Applied. Saved in this browser.</span>
+        </div>
+      );
+    }
+
+    if (activeOverrideCount > 0) {
+      return (
+        <>
+          <div className="ft-status" role="status">
+            <span>
+              {overridesEnabled
+                ? `${activeOverrideCount} of ${CHANNELS.length} channels overridden`
+                : 'Showing your original fonts'}
+            </span>
+          </div>
+          <div className="ft-footer-actions">
+            {!overridesEnabled && (
+              <button type="button" className="ft-btn" onClick={() => managerRef.current?.setOverridesEnabled(true)}>
+                Show overrides
+              </button>
+            )}
+            <button
+              type="button"
+              className="ft-btn ft-btn-quiet"
+              onClick={() => managerRef.current?.resetAll()}
+              title="Remove every override and go back to the project's fonts"
+            >
+              <RotateCcw size={13} />
+              Reset all
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <div className="ft-status">
+          <span>Using your project's fonts</span>
+        </div>
+        <span className="ft-kbd">{shortcutLabel}</span>
+      </>
+    );
+  };
 
   return (
     <div className="ft-root">
-      {/* Floating Trigger Pill */}
+      {/* Floating trigger */}
       {!isOpen && (
         <button
-          className="ft-trigger"
-          style={triggerPositionStyle}
-          onClick={() => setIsOpen(true)}
-          title="Open Font-Tastic Typography Devtool (Ctrl+Shift+F)"
+          ref={triggerRef}
+          type="button"
+          className={`ft-trigger ${sideClass}`}
+          onClick={openDrawer}
+          title={`Open Font-Tastic (${shortcutLabel})`}
         >
-          <FontTasticLogo size={20} />
-          <span style={{ fontWeight: 600 }}>Font-Tastic</span>
+          <FontTasticLogo size={22} />
+          <span>Font-Tastic</span>
           {hasPending ? (
-            <span className="ft-trigger-badge ft-trigger-badge-pending">Preview</span>
+            <span className="ft-trigger-status" style={{ color: 'var(--ft-pending)' }}>
+              <span className="ft-dot" style={{ background: 'currentColor' }} />
+              Previewing
+            </span>
           ) : activeOverrideCount > 0 ? (
-            <span className="ft-trigger-badge">
-              {overridesEnabled ? `${activeOverrideCount} Applied` : 'Paused'}
+            <span className="ft-trigger-status">
+              {overridesEnabled ? `${activeOverrideCount} applied` : 'Paused'}
             </span>
           ) : (
-            <span style={{ fontSize: 10, color: '#94a3b8' }}>Ctrl+Shift+F</span>
+            <span className="ft-kbd">{shortcutLabel}</span>
           )}
         </button>
       )}
 
-      {/* Main Devtool Drawer */}
+      {/* Main panel */}
       {isOpen && (
-        <div className="ft-drawer" style={triggerPositionStyle}>
-          {/* Header */}
+        <div
+          ref={drawerRef}
+          className={`ft-drawer ${sideClass}`}
+          role="dialog"
+          aria-label="Font-Tastic typography devtool"
+          tabIndex={-1}
+          onKeyDown={handleDrawerKeyDown}
+        >
           <div className="ft-header">
-            <div className="ft-header-title">
+            <div className="ft-brand">
               <FontTasticLogo size={22} />
               <span>Font-Tastic</span>
               {projectState?.isTailwindDetected && (
-                <span className="ft-tag">
-                  TW {projectState.tailwindVersion || 'CSS'}
+                <span className="ft-brand-meta ft-hide-narrow">
+                  Tailwind {projectState.tailwindVersion || ''}
                 </span>
               )}
             </div>
             <div className="ft-header-actions">
-              {/* Toggle Group Colored Boxes */}
               <button
-                className={`ft-toggle-pill ${highlightGroups ? 'ft-toggle-pill-boxes-active' : ''}`}
-                onClick={handleToggleHighlightGroups}
-                title="Show/hide color-coded boxes around Headings, Body, and Code text groups"
+                type="button"
+                className="ft-btn ft-btn-quiet"
+                aria-pressed={highlightGroups}
+                onClick={() => managerRef.current?.setHighlightGroups(!highlightGroups)}
+                title="Outline the text each channel controls on the page"
               >
-                <BoxSelect size={13} />
-                <span>Group Boxes</span>
+                <SquareDashed size={14} />
+                <span className="ft-hide-narrow">Outlines</span>
               </button>
-
-              {/* Master ON/OFF Toggle */}
               <button
-                className={`ft-toggle-pill ${overridesEnabled ? 'ft-toggle-pill-active' : ''}`}
-                onClick={handleToggleMaster}
+                type="button"
+                className="ft-btn ft-btn-quiet"
+                aria-pressed={!overridesEnabled}
+                disabled={activeOverrideCount === 0}
+                onClick={() => managerRef.current?.setOverridesEnabled(!overridesEnabled)}
                 title={
-                  overridesEnabled
-                    ? 'Live typography overrides are ON (click to compare with original)'
-                    : 'Live typography overrides are OFF (click to enable)'
+                  activeOverrideCount === 0
+                    ? 'Pick a font first, then use this to compare with the original'
+                    : overridesEnabled
+                    ? 'Compare: show the page with its original fonts'
+                    : 'Back to your overrides'
                 }
               >
-                {overridesEnabled ? <Eye size={13} /> : <EyeOff size={13} />}
-                <span>{overridesEnabled ? 'ON' : 'OFF'}</span>
+                {overridesEnabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                <span className="ft-hide-narrow">Original</span>
               </button>
-
-              {activeOverrideCount > 0 && (
-                <button
-                  className="ft-icon-btn"
-                  onClick={() => managerRef.current?.resetAll()}
-                  title="Reset all font overrides to project default"
-                >
-                  <RotateCcw size={15} />
-                </button>
-              )}
               <button
-                className="ft-icon-btn"
-                onClick={() => setIsOpen(false)}
-                title="Close Devtool"
+                type="button"
+                className="ft-btn ft-btn-quiet ft-btn-icon"
+                onClick={closeDrawer}
+                aria-label="Close Font-Tastic"
+                title="Close (Esc)"
               >
                 <X size={16} />
               </button>
             </div>
           </div>
 
-          {/* Group Color Legend Banner when Group Boxes is ON */}
-          {highlightGroups && (
-            <div className="ft-group-legend">
-              <span>Text Group Outlines:</span>
-              <div className="ft-group-legend-items">
-                <span className="ft-group-legend-item">
-                  <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.heading }} />
-                  Headings
-                </span>
-                <span className="ft-group-legend-item">
-                  <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.body }} />
-                  Body & UI
-                </span>
-                <span className="ft-group-legend-item">
-                  <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.mono }} />
-                  Code / Mono
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Pending Apply / Cancel Action Bar */}
-          {(hasPending || justAppliedToast) && (
-            <div className={`ft-apply-bar ${justAppliedToast && !hasPending ? 'ft-apply-bar-saved' : ''}`}>
-              {hasPending ? (
-                <>
-                  <div className="ft-apply-status">
-                    <span className="ft-apply-pulse" />
-                    <span>Live previewing unapplied options</span>
-                  </div>
-                  <div className="ft-apply-actions">
-                    <button
-                      className="ft-btn-cancel"
-                      onClick={handleCancelPreview}
-                      title="Discard preview and revert to last applied options"
-                    >
-                      <X size={12} />
-                      <span>Don't Apply</span>
-                    </button>
-                    <button
-                      className="ft-btn-apply"
-                      onClick={handleConfirmApply}
-                      title="Apply and save selected options to localStorage & History"
-                    >
-                      <Check size={12} />
-                      <span>Apply Options</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="ft-apply-status" style={{ color: '#34d399' }}>
-                  <Check size={14} color="#10b981" />
-                  <span>Options applied & saved to browser storage!</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Navigation Tabs */}
-          <div className="ft-tabs">
-            <button
-              className={`ft-tab ${activeTab === 'browse' ? 'ft-tab-active' : ''}`}
-              onClick={() => setActiveTab('browse')}
-            >
-              <Type size={14} />
-              <span>Channels</span>
-            </button>
-            <button
-              className={`ft-tab ${activeTab === 'pairings' ? 'ft-tab-active' : ''}`}
-              onClick={() => setActiveTab('pairings')}
-            >
-              <Sparkles size={14} />
-              <span>Pairings</span>
-            </button>
-            <button
-              className={`ft-tab ${activeTab === 'history' ? 'ft-tab-active' : ''}`}
-              onClick={() => setActiveTab('history')}
-            >
-              <History size={14} />
-              <span>Saved ({historyEntries.length})</span>
-            </button>
-            <button
-              className={`ft-tab ${activeTab === 'detected' ? 'ft-tab-active' : ''}`}
-              onClick={() => setActiveTab('detected')}
-            >
-              <Layers size={14} />
-              <span>Detected</span>
-            </button>
-            <button
-              className={`ft-tab ${activeTab === 'export' ? 'ft-tab-active' : ''}`}
-              onClick={() => setActiveTab('export')}
-            >
-              <Code size={14} />
-              <span>Export</span>
-            </button>
+          <div className="ft-tabs" role="tablist" aria-label="Font-Tastic sections">
+            {(
+              [
+                ['browse', 'Fonts'],
+                ['pairings', 'Pairings'],
+                ['history', 'Saved'],
+                ['detected', 'Detected'],
+                ['export', 'Export']
+              ] as [TabId, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                className="ft-tab"
+                onClick={() => setActiveTab(id)}
+              >
+                {label}
+                {id === 'history' && historyEntries.length > 0 && (
+                  <span className="ft-tab-count">{historyEntries.length}</span>
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Tab 1: Channels & Browse */}
+          {/* Tab 1: Fonts */}
           {activeTab === 'browse' && (
-            <div className="ft-body">
-              {/* Channel Selector Pills with Group Color Dots */}
-              <div className="ft-channel-pills">
-                <button
-                  className={`ft-channel-pill ${activeChannelId === 'heading' ? 'ft-channel-pill-active' : ''}`}
-                  onClick={() => setActiveChannelId('heading')}
-                >
-                  <span
-                    className="ft-color-dot"
-                    style={{
-                      backgroundColor: GROUP_COLORS.heading,
-                      boxShadow: activeChannelId === 'heading' ? '0 0 0 2px rgba(255,255,255,0.6)' : 'none'
-                    }}
-                  />
-                  <span>Headings (H1-H6)</span>
-                </button>
-                <button
-                  className={`ft-channel-pill ${activeChannelId === 'body' ? 'ft-channel-pill-active' : ''}`}
-                  onClick={() => setActiveChannelId('body')}
-                >
-                  <span
-                    className="ft-color-dot"
-                    style={{
-                      backgroundColor: GROUP_COLORS.body,
-                      boxShadow: activeChannelId === 'body' ? '0 0 0 2px rgba(255,255,255,0.6)' : 'none'
-                    }}
-                  />
-                  <span>Body & UI</span>
-                </button>
-                <button
-                  className={`ft-channel-pill ${activeChannelId === 'mono' ? 'ft-channel-pill-active' : ''}`}
-                  onClick={() => setActiveChannelId('mono')}
-                >
-                  <span
-                    className="ft-color-dot"
-                    style={{
-                      backgroundColor: GROUP_COLORS.mono,
-                      boxShadow: activeChannelId === 'mono' ? '0 0 0 2px rgba(255,255,255,0.6)' : 'none'
-                    }}
-                  />
-                  <span>Code / Mono</span>
-                </button>
-              </div>
-
-              {/* Active Channel Info & Quick Sliders */}
-              <div className="ft-status-card">
-                <div className="ft-status-card-header">
-                  <div>
-                    <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Current {currentChannelConfig?.label} Font:
-                    </span>
-                    <div className="ft-status-font-name">
-                      <span>{currentChannelState?.selectedFont || 'Project Default'}</span>
-                      {currentChannelState?.selectedFont && (
-                        currentChannelState?.selectedFont === currentAppliedState?.selectedFont && !hasPending ? (
-                          <span className="ft-badge-applied">Applied</span>
-                        ) : (
-                          <span className="ft-badge-preview">Preview</span>
-                        )
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {(currentChannelState?.selectedFont ||
-                      numericLetterSpacing !== 0 ||
-                      numericScale !== 1) && (
+            <div className="ft-pane ft-pane-fonts" role="tabpanel" aria-label="Fonts">
+              <div className="ft-pane-top">
+                {/* Channel switcher: each channel shows its current font, set in that font */}
+                <div className="ft-channels">
+                  {CHANNELS.map((channel) => {
+                    const font = channelStates.get(channel.id)?.selectedFont;
+                    return (
                       <button
-                        className="ft-icon-btn"
-                        onClick={() => managerRef.current?.resetChannel(activeChannelId)}
-                        title="Reset this channel to default"
+                        key={channel.id}
+                        type="button"
+                        className="ft-channel"
+                        aria-pressed={activeChannelId === channel.id}
+                        onClick={() => setActiveChannelId(channel.id)}
+                        title={projectState?.recommendedChannels.find((c) => c.id === channel.id)?.description}
                       >
-                        <RotateCcw size={14} />
+                        <span className="ft-channel-label">
+                          <span className="ft-dot" style={{ background: channelColor(channel.id) }} />
+                          {channel.label}
+                        </span>
+                        {font ? (
+                          <Specimen family={font} category={fontCategory(font)} className="ft-channel-font">
+                            {font}
+                          </Specimen>
+                        ) : (
+                          <span className="ft-channel-font ft-channel-font-default">Project default</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Fine-tuning for the active channel */}
+                <div className="ft-row">
+                  <ScrubField
+                    label="Spacing"
+                    unit="px"
+                    value={numericLetterSpacing}
+                    defaultValue={0}
+                    min={SPACING_RANGE.min}
+                    max={SPACING_RANGE.max}
+                    step={0.5}
+                    pixelsPerStep={6}
+                    onChange={(next) =>
+                      managerRef.current?.updateTypographyParams(activeChannelId, { letterSpacing: `${next}px` })
+                    }
+                  />
+                  <ScrubField
+                    label="Size"
+                    unit="%"
+                    value={scalePercent}
+                    defaultValue={100}
+                    min={SCALE_RANGE.min}
+                    max={SCALE_RANGE.max}
+                    step={1}
+                    pixelsPerStep={3}
+                    onChange={(next) =>
+                      managerRef.current?.updateTypographyParams(activeChannelId, {
+                        fontSizeScale: Number((next / 100).toFixed(2))
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="ft-btn ft-btn-quiet ft-btn-icon"
+                    disabled={!isCustomized(currentChannelState)}
+                    onClick={() => managerRef.current?.resetChannel(activeChannelId)}
+                    aria-label={`Reset ${activeChannelLabel} to the project default`}
+                    title={`Reset ${activeChannelLabel} to the project default`}
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                </div>
+
+                {/* Search + import */}
+                <div className="ft-row">
+                  <div className="ft-search">
+                    <Search size={14} />
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      className="ft-input"
+                      placeholder="Search fonts"
+                      aria-label="Search fonts"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                          e.preventDefault();
+                          moveInList(1, true);
+                        }
+                      }}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        className="ft-search-clear"
+                        aria-label="Clear search"
+                        onClick={() => {
+                          setSearchQuery('');
+                          searchRef.current?.focus();
+                        }}
+                      >
+                        <X size={13} />
                       </button>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    className="ft-btn"
+                    aria-expanded={isImportOpen}
+                    onClick={() => {
+                      setIsImportOpen((prev) => !prev);
+                      setImportError(null);
+                    }}
+                    title="Use your own font file or a font URL"
+                  >
+                    <Plus size={14} />
+                    Import
+                  </button>
                 </div>
 
-                {/* Typography Rectangular Inputs (Figma-style) */}
-                <div className="ft-controls-grid">
-                  <div className="ft-control-item">
-                    <span className="ft-control-label">Letter spacing</span>
-                    <div className="ft-rect-input-box">
-                      <span
-                        className="ft-rect-input-icon"
-                        title="Drag horizontally to adjust letter spacing"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const startX = e.clientX;
-                          const startVal = numericLetterSpacing;
-                          const onMove = (moveEvent: MouseEvent) => {
-                            const delta = Math.round((moveEvent.clientX - startX) / 6) * 0.5;
-                            const next = Math.max(-4, Math.min(12, Number((startVal + delta).toFixed(1))));
-                            managerRef.current?.updateTypographyParams(activeChannelId, {
-                              letterSpacing: `${next}px`
-                            });
-                          };
-                          const onUp = () => {
-                            window.removeEventListener('mousemove', onMove);
-                            window.removeEventListener('mouseup', onUp);
-                          };
-                          window.addEventListener('mousemove', onMove);
-                          window.addEventListener('mouseup', onUp);
-                        }}
+                {/* Category filter */}
+                <div className="ft-chips" role="group" aria-label="Filter by category">
+                  {CATEGORY_ORDER.map((cat) => {
+                    if (cat === 'custom' && customFonts.length === 0) return null;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        className="ft-chip"
+                        aria-pressed={selectedCategory === cat}
+                        onClick={() => setSelectedCategory(cat)}
                       >
-                        <LetterSpacingIcon />
-                      </span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="-4"
-                        max="12"
-                        value={numericLetterSpacing}
-                        className="ft-rect-input-field"
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          const parsed = parseFloat(raw);
-                          const val = Number.isNaN(parsed) ? '0px' : `${parsed}px`;
-                          managerRef.current?.updateTypographyParams(activeChannelId, {
-                            letterSpacing: val
-                          });
-                        }}
-                      />
-                      <span className="ft-rect-input-unit">px</span>
-                    </div>
-                  </div>
-
-                  <div className="ft-control-item">
-                    <span className="ft-control-label">Font size scale</span>
-                    <div className="ft-rect-input-box">
-                      <span
-                        className="ft-rect-input-icon"
-                        title="Drag horizontally to adjust font size scale"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const startX = e.clientX;
-                          const startPercent = Math.round(numericScale * 100);
-                          const onMove = (moveEvent: MouseEvent) => {
-                            const delta = Math.round((moveEvent.clientX - startX) / 3);
-                            const nextPercent = Math.max(60, Math.min(200, startPercent + delta));
-                            managerRef.current?.updateTypographyParams(activeChannelId, {
-                              fontSizeScale: Number((nextPercent / 100).toFixed(2))
-                            });
-                          };
-                          const onUp = () => {
-                            window.removeEventListener('mousemove', onMove);
-                            window.removeEventListener('mouseup', onUp);
-                          };
-                          window.addEventListener('mousemove', onMove);
-                          window.addEventListener('mouseup', onUp);
-                        }}
-                      >
-                        <FontSizeScaleIcon />
-                      </span>
-                      <input
-                        type="number"
-                        step="5"
-                        min="60"
-                        max="200"
-                        value={Math.round(numericScale * 100)}
-                        className="ft-rect-input-field"
-                        onChange={(e) => {
-                          const parsed = parseFloat(e.target.value);
-                          if (!Number.isNaN(parsed) && parsed > 0) {
-                            managerRef.current?.updateTypographyParams(activeChannelId, {
-                              fontSizeScale: Number((parsed / 100).toFixed(2))
-                            });
-                          }
-                        }}
-                      />
-                      <span className="ft-rect-input-unit">%</span>
-                    </div>
-                  </div>
+                        {CATEGORY_LABELS[cat]}
+                        {cat === 'custom' ? ` ${customFonts.length}` : ''}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Search Bar + Import Custom Font Button */}
-              <div className="ft-search-row">
-                <div className="ft-search-box" style={{ flex: 1 }}>
-                  <Search size={14} className="ft-search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Search fonts (e.g. Inter, Space, Custom)..."
-                    className="ft-search-input"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <button
-                  className={`ft-import-trigger-btn ${isImportOpen ? 'ft-import-trigger-btn-active' : ''}`}
-                  onClick={() => {
-                    setIsImportOpen((prev) => !prev);
-                    setImportError(null);
-                  }}
-                  title="Import custom font from local file (.woff2, .woff, .ttf, .otf) or URL"
-                >
-                  <Plus size={13} />
-                  <span>Import Font</span>
-                </button>
-              </div>
-
-              {/* Expandable Custom Font Import Panel (File or URL) */}
-              {isImportOpen && (
-                <div className="ft-import-panel">
-                  <div className="ft-import-header">
-                    <div className="ft-import-modes">
-                      <button
-                        type="button"
-                        className={`ft-import-mode-btn ${importMode === 'file' ? 'ft-import-mode-btn-active' : ''}`}
-                        onClick={() => {
-                          setImportMode('file');
-                          setImportError(null);
-                        }}
-                      >
-                        <Upload size={12} />
-                        <span>From File</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`ft-import-mode-btn ${importMode === 'url' ? 'ft-import-mode-btn-active' : ''}`}
-                        onClick={() => {
-                          setImportMode('url');
-                          setImportError(null);
-                        }}
-                      >
-                        <Link size={12} />
-                        <span>From URL</span>
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="ft-icon-btn"
-                      onClick={() => setIsImportOpen(false)}
-                      title="Close import panel"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-
-                  {importMode === 'file' ? (
-                    <>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".woff2,.woff,.ttf,.otf"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          handleFileChosen(file);
-                          e.target.value = '';
-                        }}
-                      />
-                      <div
-                        className={`ft-dropzone ${isDraggingFile ? 'ft-dropzone-active' : ''}`}
-                        onClick={() => fileInputRef.current?.click()}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setIsDraggingFile(true);
-                        }}
-                        onDragLeave={() => setIsDraggingFile(false)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setIsDraggingFile(false);
-                          const file = e.dataTransfer.files?.[0] || null;
-                          handleFileChosen(file);
-                        }}
-                      >
-                        <Upload size={16} color={selectedFile ? '#3b82f6' : '#64748b'} />
-                        {selectedFile ? (
-                          <div>
-                            <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 12 }}>
-                              {selectedFile.name}
-                            </div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>
-                              {(selectedFile.size / 1024).toFixed(1)} KB · Click to change file
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>
-                              Click to browse or drag & drop font file
-                            </div>
-                            <div style={{ fontSize: 10, color: '#64748b' }}>
-                              Supports .woff2, .woff, .ttf, .otf
-                            </div>
-                          </div>
-                        )}
+              <div className="ft-scroll">
+                {/* Custom font import (file or URL) */}
+                {isImportOpen && (
+                  <div className="ft-import">
+                    <div className="ft-pane-head">
+                      <div className="ft-segments" role="group" aria-label="Import source">
+                        <button
+                          type="button"
+                          className="ft-segment"
+                          aria-pressed={importMode === 'file'}
+                          onClick={() => {
+                            setImportMode('file');
+                            setImportError(null);
+                          }}
+                        >
+                          <Upload size={13} />
+                          File
+                        </button>
+                        <button
+                          type="button"
+                          className="ft-segment"
+                          aria-pressed={importMode === 'url'}
+                          onClick={() => {
+                            setImportMode('url');
+                            setImportError(null);
+                          }}
+                        >
+                          <Link size={13} />
+                          URL
+                        </button>
                       </div>
-                    </>
-                  ) : (
-                    <div className="ft-control-item">
-                      <span className="ft-control-label">
-                        Font URL (CSS Stylesheet, &lt;link&gt;, or .woff2/.ttf/.otf URL)
-                      </span>
-                      <input
-                        type="text"
-                        className="ft-input-field"
-                        placeholder="https://api.fontshare.com/v2/css?f[]=satoshi@400,700 or https://.../font.woff2"
-                        value={importUrl}
-                        onChange={(e) => handleUrlInputChange(e.target.value)}
-                      />
-                    </div>
-                  )}
-
-                  <div className="ft-import-fields-row">
-                    <div className="ft-control-item">
-                      <span className="ft-control-label">Font family name</span>
-                      <input
-                        type="text"
-                        className="ft-input-field"
-                        placeholder="e.g. Satoshi, Clash Display"
-                        value={importFamilyName}
-                        onChange={(e) => {
-                          setImportFamilyName(e.target.value);
-                          setImportFamilyTouched(true);
-                        }}
-                      />
-                    </div>
-                    <div className="ft-control-item">
-                      <span className="ft-control-label">Category</span>
-                      <select
-                        className="ft-select-field"
-                        value={importCategory}
-                        onChange={(e) => setImportCategory(e.target.value as FontCategory)}
+                      <button
+                        type="button"
+                        className="ft-btn ft-btn-quiet ft-btn-icon ft-btn-sm"
+                        onClick={() => setIsImportOpen(false)}
+                        aria-label="Close import"
                       >
-                        <option value="sans-serif">Sans-Serif</option>
-                        <option value="serif">Serif</option>
-                        <option value="display">Display</option>
-                        <option value="monospace">Monospace</option>
-                        <option value="handwriting">Handwriting</option>
-                      </select>
+                        <X size={14} />
+                      </button>
                     </div>
-                  </div>
 
-                  {importError && <div className="ft-import-error">{importError}</div>}
+                    {importMode === 'file' ? (
+                      <>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".woff2,.woff,.ttf,.otf"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            handleFileChosen(file);
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className={`ft-dropzone ${isDraggingFile ? 'ft-dropzone-active' : ''}`}
+                          onClick={() => fileInputRef.current?.click()}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsDraggingFile(true);
+                          }}
+                          onDragLeave={() => setIsDraggingFile(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDraggingFile(false);
+                            const file = e.dataTransfer.files?.[0] || null;
+                            handleFileChosen(file);
+                          }}
+                        >
+                          {selectedFile ? (
+                            <>
+                              <span style={{ fontWeight: 500 }}>{selectedFile.name}</span>
+                              <span className="ft-caption ft-num">
+                                {(selectedFile.size / 1024).toFixed(1)} KB · choose another
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ fontWeight: 500 }}>Drop a font file, or browse</span>
+                              <span className="ft-caption">.woff2, .woff, .ttf or .otf</span>
+                            </>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <label className="ft-label">
+                        Stylesheet or font file URL
+                        <input
+                          type="url"
+                          className="ft-input"
+                          placeholder="https://api.fontshare.com/v2/css?f[]=satoshi@400,700"
+                          value={importUrl}
+                          onChange={(e) => handleUrlInputChange(e.target.value)}
+                        />
+                      </label>
+                    )}
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    <div className="ft-import-grid">
+                      <label className="ft-label">
+                        Family name
+                        <input
+                          type="text"
+                          className="ft-input"
+                          placeholder="Satoshi"
+                          value={importFamilyName}
+                          onChange={(e) => {
+                            setImportFamilyName(e.target.value);
+                            setImportFamilyTouched(true);
+                          }}
+                        />
+                      </label>
+                      <label className="ft-label">
+                        Category
+                        <select
+                          className="ft-select"
+                          value={importCategory}
+                          onChange={(e) => setImportCategory(e.target.value as FontCategory)}
+                        >
+                          <option value="sans-serif">Sans-serif</option>
+                          <option value="serif">Serif</option>
+                          <option value="display">Display</option>
+                          <option value="monospace">Monospace</option>
+                          <option value="handwriting">Handwriting</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    {importError && (
+                      <div className="ft-error" role="alert">
+                        {importError}
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      className="ft-btn-cancel"
-                      onClick={() => setIsImportOpen(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="ft-btn-apply"
+                      className="ft-btn ft-btn-primary"
                       disabled={isImporting}
                       onClick={handleImportSubmit}
                     >
-                      <Check size={12} />
-                      <span>{isImporting ? 'Importing...' : `Import & Preview on ${currentChannelConfig?.label || 'Channel'}`}</span>
+                      {isImporting ? 'Importing…' : `Import and preview on ${activeChannelLabel}`}
                     </button>
                   </div>
+                )}
+
+                <div className="ft-list-head">
+                  <span className="ft-caption ft-num">
+                    {filteredFonts.length} {filteredFonts.length === 1 ? 'font' : 'fonts'} for {activeChannelLabel}
+                  </span>
+                  {filteredFonts.length > 1 && <span className="ft-kbd ft-hide-narrow">↑ ↓ to preview</span>}
                 </div>
-              )}
 
-              {/* Category Filter Chips */}
-              <div className="ft-category-chips">
-                {(['all', 'custom', 'sans-serif', 'serif', 'display', 'monospace', 'handwriting'] as const).map((cat) => {
-                  if (cat === 'custom' && customFonts.length === 0) return null;
-                  return (
+                {filteredFonts.length === 0 ? (
+                  <div className="ft-empty">
+                    <span>
+                      No fonts match
+                      {searchQuery.trim() ? ` “${searchQuery.trim()}”` : ''}
+                      {selectedCategory !== 'all' ? ` in ${CATEGORY_LABELS[selectedCategory]}` : ''}.
+                    </span>
                     <button
-                      key={cat}
-                      className={`ft-chip ${selectedCategory === cat ? 'ft-chip-active' : ''}`}
-                      onClick={() => setSelectedCategory(cat)}
+                      type="button"
+                      className="ft-btn"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('all');
+                      }}
                     >
-                      {cat === 'all'
-                        ? 'All Types'
-                        : cat === 'custom'
-                        ? `Imported (${customFonts.length})`
-                        : cat}
+                      Clear filters
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                ) : (
+                  <div
+                    ref={listRef}
+                    className="ft-list"
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        moveInList(e.key === 'ArrowDown' ? 1 : -1);
+                      }
+                    }}
+                  >
+                    {filteredFonts.map((font) => {
+                      const isSelected = currentChannelState?.selectedFont === font.family;
+                      const isApplied = currentAppliedState?.selectedFont === font.family;
 
-              {/* Font Cards Grid */}
-              <div className="ft-font-grid">
-                {filteredFonts.map((font) => {
-                  const isSelected = currentChannelState?.selectedFont === font.family;
-                  const isApplied = currentAppliedState?.selectedFont === font.family;
-
-                  // Preload specimen font when rendering card
-                  loadGoogleFont(font.family);
-
-                  return (
-                    <div
-                      key={font.family}
-                      className={`ft-font-card ${isSelected ? 'ft-font-card-selected' : ''}`}
-                      onClick={() => handleSelectFont(font.family)}
-                    >
-                      <div className="ft-font-card-top">
-                        <span className="ft-font-title">{font.family}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {font.isCustom && <span className="ft-badge-custom">Custom</span>}
-                          {isApplied && <span className="ft-badge-applied">Applied</span>}
-                          {isSelected && !isApplied && <span className="ft-badge-preview">Preview</span>}
-                          <span style={{ fontSize: 10, color: '#64748b', textTransform: 'capitalize' }}>
-                            {font.category}
-                          </span>
+                      return (
+                        <div key={font.family} className={`ft-item ${isSelected ? 'ft-item-selected' : ''}`}>
+                          <button
+                            type="button"
+                            className="ft-font-row"
+                            data-ft-font={font.family}
+                            aria-pressed={isSelected}
+                            onClick={() => handleSelectFont(font.family)}
+                            title={font.tags?.length ? font.tags.join(' · ') : undefined}
+                          >
+                            <Specimen family={font.family} category={font.category} className="ft-font-name">
+                              {font.family}
+                            </Specimen>
+                            <span className="ft-font-meta">
+                              {isSelected && !isApplied ? (
+                                <span className="ft-pill ft-pill-preview">Preview</span>
+                              ) : isApplied ? (
+                                <span className="ft-pill ft-pill-applied">Applied</span>
+                              ) : (
+                                <span>
+                                  {font.isCustom ? 'Imported · ' : ''}
+                                  {CATEGORY_LABELS[font.category]}
+                                </span>
+                              )}
+                            </span>
+                          </button>
                           {font.isCustom && (
                             <button
                               type="button"
-                              className="ft-icon-btn"
-                              style={{ padding: 2 }}
-                              title={`Remove custom font "${font.family}"`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveCustomFont(font.family);
-                              }}
+                              className="ft-btn ft-btn-quiet ft-btn-icon ft-btn-sm ft-item-action"
+                              aria-label={`Remove imported font ${font.family}`}
+                              title={`Remove imported font ${font.family}`}
+                              onClick={() => handleRemoveCustomFont(font.family)}
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={13} />
                             </button>
                           )}
-                          {isSelected && <Check size={14} color="#3b82f6" />}
                         </div>
-                      </div>
-
-                      <div
-                        className="ft-font-preview"
-                        style={{ fontFamily: `"${font.family}", sans-serif` }}
-                      >
-                        Sphinx of black quartz, judge my vow.
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="ft-font-tags">
-                          {font.tags?.map((t) => (
-                            <span key={t} className="ft-mini-tag">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                        {isSelected && hasPending && (
-                          <button
-                            className="ft-btn-apply"
-                            style={{ padding: '3px 8px', fontSize: 10 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfirmApply();
-                            }}
-                          >
-                            <Check size={11} />
-                            <span>Apply</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {/* Tab 2: Pairings */}
           {activeTab === 'pairings' && (
-            <div className="ft-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                  Curated Headings + Body Combinations
-                </span>
-                <button
-                  className="ft-copy-btn"
-                  style={{ position: 'static' }}
-                  onClick={handleShuffle}
-                >
-                  <Sparkles size={12} />
-                  <span>Randomize</span>
-                </button>
+            <div className="ft-pane" role="tabpanel" aria-label="Pairings">
+              <div className="ft-pane-top">
+                <div className="ft-pane-head">
+                  <span className="ft-caption ft-num">
+                    {CURATED_PAIRINGS.length} heading and body pairings
+                  </span>
+                  <button type="button" className="ft-btn" onClick={handleShuffle}>
+                    <Shuffle size={13} />
+                    Shuffle
+                  </button>
+                </div>
               </div>
 
-              <div className="ft-font-grid">
-                {CURATED_PAIRINGS.map((pairing) => {
-                  loadGoogleFont(pairing.headingFont);
-                  loadGoogleFont(pairing.bodyFont);
+              <div className="ft-scroll">
+                <div className="ft-list">
+                  {CURATED_PAIRINGS.map((pairing) => {
+                    const isActive =
+                      channelStates.get('heading')?.selectedFont === pairing.headingFont &&
+                      channelStates.get('body')?.selectedFont === pairing.bodyFont;
+                    const isPairingApplied =
+                      appliedStates.get('heading')?.selectedFont === pairing.headingFont &&
+                      appliedStates.get('body')?.selectedFont === pairing.bodyFont;
 
-                  const isHeadingActive = channelStates.get('heading')?.selectedFont === pairing.headingFont;
-                  const isBodyActive = channelStates.get('body')?.selectedFont === pairing.bodyFont;
-                  const isActive = isHeadingActive && isBodyActive;
-
-                  const isHeadingApplied = appliedStates.get('heading')?.selectedFont === pairing.headingFont;
-                  const isBodyApplied = appliedStates.get('body')?.selectedFont === pairing.bodyFont;
-                  const isPairingApplied = isHeadingApplied && isBodyApplied;
-
-                  return (
-                    <div
-                      key={pairing.id}
-                      className={`ft-pairing-card ${isActive ? 'ft-font-card-selected' : ''}`}
-                      onClick={() => handleApplyPairing(pairing.headingFont, pairing.bodyFont)}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: 13 }}>
-                          {pairing.name}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {isPairingApplied && <span className="ft-badge-applied">Applied</span>}
-                          {isActive && !isPairingApplied && <span className="ft-badge-preview">Preview</span>}
-                          {isActive && <Check size={14} color="#3b82f6" />}
-                        </div>
-                      </div>
-
-                      <div
-                        className="ft-pairing-preview-h"
-                        style={{ fontFamily: `"${pairing.headingFont}", sans-serif` }}
-                      >
-                        {pairing.headingFont}
-                      </div>
-
-                      <div
-                        className="ft-pairing-preview-b"
-                        style={{ fontFamily: `"${pairing.bodyFont}", sans-serif` }}
-                      >
-                        Body in {pairing.bodyFont}: {pairing.description}
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div className="ft-font-tags">
-                          {pairing.tags.map((t) => (
-                            <span key={t} className="ft-mini-tag">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                        {isActive && hasPending && (
-                          <button
-                            className="ft-btn-apply"
-                            style={{ padding: '3px 8px', fontSize: 10 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfirmApply();
-                            }}
+                    return (
+                      <div key={pairing.id} className={`ft-item ${isActive ? 'ft-item-selected' : ''}`}>
+                        <button
+                          type="button"
+                          className="ft-pairing-row"
+                          aria-pressed={isActive}
+                          onClick={() => handleApplyPairing(pairing.headingFont, pairing.bodyFont)}
+                        >
+                          <span className="ft-pairing-top">
+                            <Specimen
+                              family={pairing.headingFont}
+                              category={fontCategory(pairing.headingFont)}
+                              className="ft-pairing-heading"
+                            >
+                              {pairing.headingFont}
+                            </Specimen>
+                            {isActive && !isPairingApplied ? (
+                              <span className="ft-pill ft-pill-preview">Preview</span>
+                            ) : isPairingApplied ? (
+                              <span className="ft-pill ft-pill-applied">Applied</span>
+                            ) : null}
+                          </span>
+                          <Specimen
+                            family={pairing.bodyFont}
+                            category={fontCategory(pairing.bodyFont)}
+                            className="ft-pairing-body"
                           >
-                            <Check size={11} />
-                            <span>Apply Pairing</span>
-                          </button>
-                        )}
+                            {pairing.bodyFont}. {pairing.description}
+                          </Specimen>
+                          <span className="ft-pairing-meta">
+                            {pairing.name} · {pairing.tags.join(', ')}
+                          </span>
+                        </button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Tab 3: Applied History & Saved States */}
+          {/* Tab 3: Saved (applied history) */}
           {activeTab === 'history' && (
-            <div className="ft-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                  Applied Typography History (Saved in localStorage)
-                </span>
-                {historyEntries.length > 0 && (
-                  <button
-                    className="ft-copy-btn"
-                    style={{ position: 'static' }}
-                    onClick={() => managerRef.current?.clearHistory()}
-                  >
-                    <Trash2 size={12} />
-                    <span>Clear</span>
-                  </button>
-                )}
-              </div>
-
+            <div className="ft-pane" role="tabpanel" aria-label="Saved">
               {historyEntries.length === 0 ? (
-                <div className="ft-status-card" style={{ textAlign: 'center', padding: 24 }}>
-                  <div style={{ fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>
-                    No Applied Configurations Yet
-                  </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    Select a font or pairing in the Channels or Pairings tab and click{' '}
-                    <strong style={{ color: '#60a5fa' }}>Apply Options</strong> to save it here.
+                <div className="ft-scroll ft-scroll-pad">
+                  <div className="ft-empty">
+                    <span>
+                      Nothing saved yet. Every time you press Apply, that set of fonts is kept here so you can
+                      come back to it.
+                    </span>
+                    <button type="button" className="ft-btn" onClick={() => setActiveTab('browse')}>
+                      Browse fonts
+                    </button>
                   </div>
                 </div>
               ) : (
-                <div className="ft-font-grid">
-                  {historyEntries.map((entry, idx) => (
-                    <div
-                      key={entry.id}
-                      className={`ft-font-card ${idx === 0 && !hasPending ? 'ft-font-card-selected' : ''}`}
-                      onClick={() => managerRef.current?.restoreHistoryEntry(entry.id)}
-                    >
-                      <div className="ft-font-card-top">
-                        <span className="ft-font-title">{entry.label}</span>
-                        <span style={{ fontSize: 10, color: '#64748b' }}>
-                          {new Date(entry.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                        {Object.entries(entry.channels).map(([chId, st]) => (
-                          <span
-                            key={chId}
-                            className="ft-mini-tag"
-                            style={{
-                              borderColor: GROUP_COLORS[chId] || '#334155',
-                              color: '#e2e8f0'
-                            }}
-                          >
-                            {chId}: {st.selectedFont || 'Default'}
-                            {st.fontSizeScale && st.fontSizeScale !== 1 ? ` (x${st.fontSizeScale})` : ''}
-                          </span>
-                        ))}
-                      </div>
+                <>
+                  <div className="ft-pane-top">
+                    <div className="ft-pane-head">
+                      <span className="ft-caption ft-num">
+                        {historyEntries.length} applied {historyEntries.length === 1 ? 'set' : 'sets'}, kept in this
+                        browser
+                      </span>
+                      <button
+                        type="button"
+                        className="ft-btn ft-btn-quiet ft-btn-sm"
+                        onClick={() => {
+                          if (confirmClear) {
+                            managerRef.current?.clearHistory();
+                            setConfirmClear(false);
+                          } else {
+                            setConfirmClear(true);
+                          }
+                        }}
+                        onBlur={() => setConfirmClear(false)}
+                        style={confirmClear ? { color: 'var(--ft-negative)' } : undefined}
+                      >
+                        <Trash2 size={13} />
+                        {confirmClear ? `Delete all ${historyEntries.length}?` : 'Clear'}
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="ft-scroll">
+                    <div className="ft-list">
+                      {historyEntries.map((entry) => {
+                        const isCurrent =
+                          !hasPending &&
+                          CHANNELS.every((c) => sameChannelLook(entry.channels[c.id], appliedStates.get(c.id)));
+
+                        return (
+                          <div key={entry.id} className="ft-item">
+                            <button
+                              type="button"
+                              className="ft-saved-row"
+                              onClick={() => managerRef.current?.restoreHistoryEntry(entry.id)}
+                              disabled={isCurrent}
+                              style={isCurrent ? { opacity: 1 } : undefined}
+                            >
+                              <span className="ft-saved-top">
+                                <span className="ft-num">{formatSavedTime(entry.timestamp)}</span>
+                                {isCurrent ? (
+                                  <span className="ft-pill ft-pill-applied">Current</span>
+                                ) : (
+                                  <span className="ft-saved-restore">Restore</span>
+                                )}
+                              </span>
+                              <span className="ft-saved-fonts">
+                                {CHANNELS.map((c) => {
+                                  const st = entry.channels[c.id];
+                                  const tweaks = describeTweaks(st);
+                                  return (
+                                    <span
+                                      key={c.id}
+                                      className={`ft-saved-font ${st?.selectedFont ? '' : 'ft-saved-font-default'}`}
+                                      title={c.label}
+                                    >
+                                      <span className="ft-dot" style={{ background: channelColor(c.id) }} />
+                                      <span className="ft-sr-only">{c.label}: </span>
+                                      {st?.selectedFont || 'Default'}
+                                      {tweaks && <span className="ft-caption ft-num">{tweaks}</span>}
+                                    </span>
+                                  );
+                                })}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          {/* Tab 4: Detected Project Setup */}
+          {/* Tab 4: Detected project setup */}
           {activeTab === 'detected' && (
-            <div className="ft-body">
-              <div className="ft-status-card">
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Info size={14} color="#3b82f6" />
-                  <span>Auto-Detected Project Typography</span>
+            <div className="ft-pane" role="tabpanel" aria-label="Detected">
+              <div className="ft-scroll ft-scroll-pad">
+                <div className="ft-section-title">What your page uses now</div>
+                <div className="ft-kv">
+                  <span className="ft-kv-key">Tailwind</span>
+                  <span className="ft-kv-value">
+                    {projectState?.isTailwindDetected
+                      ? `Detected${projectState.tailwindVersion ? `, ${projectState.tailwindVersion}` : ''}`
+                      : 'Not detected'}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                  Font-Tastic inspected your DOM, computed styles, and stylesheet variables.
-                </div>
-              </div>
+                {CHANNELS.map((c) => {
+                  const config = projectState?.recommendedChannels.find((ch) => ch.id === c.id);
+                  const stack = projectState?.computedFonts[c.id as 'heading' | 'body' | 'mono'];
+                  return (
+                    <div key={c.id} className="ft-kv">
+                      <span className="ft-kv-key">
+                        <span className="ft-dot" style={{ background: channelColor(c.id) }} />
+                        {c.label}
+                      </span>
+                      <span className="ft-kv-value">{primaryFamily(stack) || 'Unknown'}</span>
+                      {config && (
+                        <span className="ft-kv-sub" title="Elements this channel changes">
+                          {config.customSelector || config.defaultSelector}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span className="ft-control-label">Computed Element Fonts & Group Colors</span>
-                <div className="ft-code-block" style={{ padding: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.heading }} />
-                    <strong>Headings:</strong> {projectState?.computedFonts.heading || 'None'}
-                  </div>
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.body }} />
-                    <strong>Body & UI:</strong> {projectState?.computedFonts.body || 'None'}
-                  </div>
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="ft-color-dot" style={{ backgroundColor: GROUP_COLORS.mono }} />
-                    <strong>Code / Mono:</strong> {projectState?.computedFonts.mono || 'None'}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span className="ft-control-label">Discovered CSS Variables</span>
-                {projectState?.cssVariables && projectState.cssVariables.length > 0 ? (
-                  <div className="ft-code-block" style={{ padding: 10 }}>
-                    {projectState.cssVariables.map((v) => (
-                      <div key={v.name} style={{ marginBottom: 4 }}>
-                        <span style={{ color: '#60a5fa' }}>{v.name}</span>: {v.value};
-                      </div>
-                    ))}
-                  </div>
+                <div className="ft-section-title">Font CSS variables on :root</div>
+                {detectedVariables.length > 0 ? (
+                  detectedVariables.map((v) => (
+                    <div key={v.name} className="ft-kv">
+                      <span className="ft-kv-key ft-mono">{v.name}</span>
+                      <span className="ft-kv-value ft-mono">{v.value}</span>
+                    </div>
+                  ))
                 ) : (
-                  <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
-                    No root CSS font variables detected. Font-Tastic is applying rules directly via scoped element overrides!
+                  <div className="ft-caption">
+                    None found. Font-Tastic overrides the elements directly instead, so everything still works.
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Tab 5: Export Code */}
+          {/* Tab 5: Export code */}
           {activeTab === 'export' && (
-            <div className="ft-body">
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                Make your chosen typography permanent in your codebase:
-              </span>
-
-              {/* Export Selector Chips */}
-              <div className="ft-category-chips">
-                <button
-                  className={`ft-chip ${exportFramework === 'tailwind-v3' ? 'ft-chip-active' : ''}`}
-                  onClick={() => setExportFramework('tailwind-v3')}
-                >
-                  Tailwind v3
-                </button>
-                <button
-                  className={`ft-chip ${exportFramework === 'tailwind-v4' ? 'ft-chip-active' : ''}`}
-                  onClick={() => setExportFramework('tailwind-v4')}
-                >
-                  Tailwind v4 (@theme)
-                </button>
-                <button
-                  className={`ft-chip ${exportFramework === 'css-vars' ? 'ft-chip-active' : ''}`}
-                  onClick={() => setExportFramework('css-vars')}
-                >
-                  CSS Variables
-                </button>
-                <button
-                  className={`ft-chip ${exportFramework === 'fontsource' ? 'ft-chip-active' : ''}`}
-                  onClick={() => setExportFramework('fontsource')}
-                >
-                  @fontsource (pnpm)
-                </button>
-                <button
-                  className={`ft-chip ${exportFramework === 'nextjs' ? 'ft-chip-active' : ''}`}
-                  onClick={() => setExportFramework('nextjs')}
-                >
-                  Next.js (next/font)
-                </button>
+            <div className="ft-pane" role="tabpanel" aria-label="Export">
+              <div className="ft-pane-top">
+                <div className="ft-chips" role="group" aria-label="Export format">
+                  {EXPORT_FORMATS.map((format) => (
+                    <button
+                      key={format.id}
+                      type="button"
+                      className="ft-chip"
+                      aria-pressed={exportFramework === format.id}
+                      onClick={() => setExportFramework(format.id)}
+                    >
+                      {format.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="ft-caption">
+                  {activeOverrideCount === 0
+                    ? 'No overrides yet, so this is your current setup. Pick fonts and the code updates.'
+                    : hasPending
+                    ? 'Includes the fonts you are previewing.'
+                    : 'Paste this into your project to make the applied fonts permanent.'}
+                </span>
               </div>
-
-              {/* Snippet Output */}
-              {exportFramework === 'tailwind-v3' && (
-                <div className="ft-code-block">
-                  <button
-                    className="ft-copy-btn"
-                    onClick={() => handleCopy('tw3', exportData.tailwindV3Snippet)}
-                  >
-                    {copiedKey === 'tw3' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                    <span>{copiedKey === 'tw3' ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                  <pre>{exportData.tailwindV3Snippet}</pre>
-                </div>
-              )}
-
-              {exportFramework === 'tailwind-v4' && (
-                <div className="ft-code-block">
-                  <button
-                    className="ft-copy-btn"
-                    onClick={() => handleCopy('tw4', exportData.tailwindV4Snippet)}
-                  >
-                    {copiedKey === 'tw4' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                    <span>{copiedKey === 'tw4' ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                  <pre>{exportData.tailwindV4Snippet}</pre>
-                </div>
-              )}
-
-              {exportFramework === 'css-vars' && (
-                <>
-                  <div className="ft-code-block">
+              <div className="ft-scroll">
+                {exportBlocks.map((block, index) => (
+                  <div key={block.key} className="ft-code" style={index === 0 ? { marginTop: 0 } : undefined}>
                     <button
-                      className="ft-copy-btn"
-                      onClick={() => handleCopy('html', exportData.htmlHeadSnippet)}
+                      type="button"
+                      className="ft-btn ft-btn-sm ft-code-copy"
+                      onClick={() => handleCopy(block.key, block.code)}
                     >
-                      {copiedKey === 'html' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                      <span>{copiedKey === 'html' ? 'Copied!' : 'Copy'}</span>
+                      {copiedKey === block.key ? <Check size={13} /> : <Copy size={13} />}
+                      {copiedKey === block.key ? 'Copied' : 'Copy'}
                     </button>
-                    <pre>{exportData.htmlHeadSnippet}</pre>
+                    <pre>{block.code}</pre>
                   </div>
-                  <div className="ft-code-block" style={{ marginTop: 8 }}>
-                    <button
-                      className="ft-copy-btn"
-                      onClick={() => handleCopy('css', exportData.cssVariablesSnippet)}
-                    >
-                      {copiedKey === 'css' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                      <span>{copiedKey === 'css' ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                    <pre>{exportData.cssVariablesSnippet}</pre>
-                  </div>
-                </>
-              )}
-
-              {exportFramework === 'fontsource' && (
-                <>
-                  <div className="ft-code-block">
-                    <button
-                      className="ft-copy-btn"
-                      onClick={() => handleCopy('fs-cmd', exportData.fontsourceInstallCmd)}
-                    >
-                      {copiedKey === 'fs-cmd' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                      <span>{copiedKey === 'fs-cmd' ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                    <pre>{exportData.fontsourceInstallCmd}</pre>
-                  </div>
-                  <div className="ft-code-block" style={{ marginTop: 8 }}>
-                    <button
-                      className="ft-copy-btn"
-                      onClick={() => handleCopy('fs-imp', exportData.fontsourceImports)}
-                    >
-                      {copiedKey === 'fs-imp' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                      <span>{copiedKey === 'fs-imp' ? 'Copied!' : 'Copy'}</span>
-                    </button>
-                    <pre>{exportData.fontsourceImports}</pre>
-                  </div>
-                </>
-              )}
-
-              {exportFramework === 'nextjs' && (
-                <div className="ft-code-block">
-                  <button
-                    className="ft-copy-btn"
-                    onClick={() => handleCopy('next', exportData.nextConfigSnippet)}
-                  >
-                    {copiedKey === 'next' ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                    <span>{copiedKey === 'next' ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                  <pre>{exportData.nextConfigSnippet}</pre>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
+
+          <div className="ft-footer">{renderFooter()}</div>
         </div>
       )}
     </div>
