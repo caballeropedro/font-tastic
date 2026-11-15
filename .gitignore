@@ -8,5 +8,6 @@ dist
 .npmrc
 .vercel
 .taste-skill
+.claude
 *.tsbuildinfo
 *.log
