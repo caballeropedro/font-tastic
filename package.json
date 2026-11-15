@@ -1,6 +1,6 @@
 {
   "name": "font-tastic-monorepo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Open-source in-app typography devtool with auto-detection for web projects",
   "scripts": {
