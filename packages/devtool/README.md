@@ -1,11 +1,56 @@
-# `@font-tastic/devtool`
+<!-- Generated from the root README.md by scripts/sync-readme.mjs. Edit that file instead. -->
 
-> **Floating in-app React typography devtool widget for [Font-Tastic](https://github.com/caballeropedro/font-tastic).**  
-> Browse, test, fine-tune, and export Google Fonts live on your real UI components with zero configuration.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/caballeropedro/font-tastic/main/web/public/logo.svg" width="72" height="72" alt="Font-Tastic logo" />
+</p>
 
----
+<h1 align="center">Font-Tastic</h1>
 
-## Installation
+<p align="center">
+  <strong>Stop guessing. Just look at it.</strong><br />
+  An in-app devtool that swaps fonts on your real UI while you watch,<br />
+  applies the ones you pick, and hands you the config.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@font-tastic/devtool"><img src="https://img.shields.io/npm/v/@font-tastic/devtool?color=2563eb&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@font-tastic/devtool"><img src="https://img.shields.io/npm/dm/@font-tastic/devtool?color=2563eb" alt="npm downloads" /></a>
+  <img src="https://img.shields.io/badge/license-MIT-2563eb" alt="MIT license" />
+</p>
+
+<p align="center">
+  <a href="https://fontastic.tech">Website and docs</a> ·
+  <a href="https://www.npmjs.com/package/@font-tastic/devtool">npm</a> ·
+  <a href="#quick-start">Quick start</a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/caballeropedro/font-tastic/main/.github/assets/demo.gif" width="800" alt="Font-Tastic demo: picking fonts on a live page, applying them, and copying the config" />
+</p>
+
+## Why
+
+Choosing a font usually means guessing. You copy a `<link>` tag, edit a config file, wait for a reload, and only then find out the font does not suit your navigation, your cards or your hero.
+
+Font-Tastic puts the font picker inside your running app, so you judge every font on your own components instead of on a specimen page.
+
+## Features
+
+- **Finds your fonts for you.** Reads `:root` and your stylesheets for font variables (`--font-heading`, `--font-body`, Tailwind's `--font-sans` and `--font-mono`) and detects Tailwind v3 or v4. No configuration.
+- **Three independent channels.** Change Headings (`h1` to `h6`), Body & UI, and Code / Mono separately.
+- **100+ Google Fonts, plus your own.** Browse the built-in catalog, or import a `.woff2`, `.woff`, `.ttf` or `.otf` from your machine or a URL.
+- **Pairings and shuffle.** Apply a curated pairing in one click, or randomize.
+- **Fine-tuning.** Adjust letter spacing and size scale live, without touching CSS.
+- **Apply or cancel.** Changes are a preview until you press Apply. Applied fonts are saved in your browser, so they stay on across reloads while you work, and every applied set goes into a history you can return to. Cancel puts back what you had.
+- **Choose what changes.** In the Targets tab, click elements on your page to ignore them, or switch to *Only selected* and change just the parts you pick. Select all / Deselect all reset it, and selected (green) and ignored (red) elements are highlighted on the page.
+- **Fonts by class.** Give any CSS class, like `.card-title`, its own font, spacing and size. It is saved with Apply and included in Export.
+- **Group boxes.** Outline every element each channel controls, so you can see what a change affects.
+- **One-click export.** Copy the result as an HTML `<link>`, CSS variables, Tailwind v3 config, Tailwind v4 `@theme`, `@fontsource` install commands, or Next.js `next/font`.
+- **Development only.** Render it behind a dev check and it never ships to production.
+
+## Quick start
+
+### 1. Install
 
 ```bash
 pnpm add -D @font-tastic/devtool
@@ -13,13 +58,11 @@ pnpm add -D @font-tastic/devtool
 npm install -D @font-tastic/devtool
 ```
 
-Peer dependencies: `react >= 18.0.0`, `react-dom >= 18.0.0`.
+Requires React 18 or newer.
 
----
+### 2. Add it to your app
 
-## Quick Usage
-
-### Vite / React
+**Vite / React**
 
 ```tsx
 import { FontTastic } from '@font-tastic/devtool';
@@ -34,7 +77,7 @@ export function App() {
 }
 ```
 
-### Next.js (App Router)
+**Next.js (App Router)**
 
 ```tsx
 // app/layout.tsx
@@ -52,30 +95,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
----
+### 3. Open it
 
-## Component Props (`FontTasticProps`)
+Click the floating Font-Tastic button, or press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>F</kbd> (<kbd>Cmd</kbd> <kbd>Shift</kbd> <kbd>F</kbd> on macOS).
+
+Pick fonts, press **Apply** to keep them on while you work, then open **Export** and copy the config into your project.
+
+## Props
 
 | Prop | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `initialOpen` | `boolean` | `false` | Whether the typography drawer starts expanded when mounted. |
-| `position` | `'bottom-right' \| 'bottom-left'` | `'bottom-right'` | Screen corner where the floating trigger badge and drawer attach. |
+| `initialOpen` | `boolean` | `false` | Whether the drawer starts open. |
+| `position` | `'bottom-right' \| 'bottom-left'` | `'bottom-right'` | Corner for the floating button and drawer. |
 
----
+## Packages
 
-## Features & Keyboard Shortcuts
+| Package | Description |
+| :--- | :--- |
+| [`@font-tastic/devtool`](https://github.com/caballeropedro/font-tastic/tree/main/packages/devtool) | The React devtool: floating button, drawer, channels, pairings, sliders and export. |
+| [`@font-tastic/core`](https://github.com/caballeropedro/font-tastic/tree/main/packages/core) | The framework-agnostic engine: font catalog, loader, CSS variable scanner, override manager and exporter. Use it to build your own tooling. |
+| [`web`](https://github.com/caballeropedro/font-tastic/tree/main/web) | The website and docs at [fontastic.tech](https://fontastic.tech), with Font-Tastic running on itself. |
 
-- **Toggle the panel:** `Ctrl + Shift + F` (`Cmd + Shift + F` on macOS) or click the floating **Font-Tastic** pill. `Esc` closes it. The panel remembers whether it was open, and which tab and channel you were on, across reloads.
-- **Fonts tab:** Switch between **Headings**, **Body & UI** and **Code**; each channel shows its current font. Press `/` to search, then `↑` / `↓` to walk the list and preview each font on your page. Drag the **Spacing** and **Size** labels to scrub (double-click to reset), filter by category, or **Import** your own font file or URL.
-- **Apply or discard:** Every change is a live preview until you press **Apply** in the bar at the bottom of the panel, which saves it in the browser. **Discard** returns to the last applied fonts.
-- **Outlines / Original:** **Outlines** marks the text each channel controls; **Original** flips back to your project's fonts to compare.
-- **Pairings tab:** Apply curated heading and body pairings with one click, or hit **Shuffle**.
-- **Saved tab:** Every applied set is kept so you can restore it later.
-- **Detected tab:** The fonts your page uses now, the selectors each channel targets, your `:root` font variables and the Tailwind CSS version (`v3` / `v4`).
-- **Export tab:** Copy ready-to-use snippets for **Tailwind v4 (`@theme`)**, **Tailwind v3**, **CSS variables**, **`next/font`** or **`@fontsource`**. The format matching your detected setup is preselected.
+## Development
 
----
+This is a `pnpm` monorepo. You need Node.js 18 or newer and pnpm 9 or newer.
+
+```bash
+pnpm install   # install dependencies
+pnpm dev       # run the website at http://localhost:3000
+pnpm build     # build core, devtool and the website
+pnpm test      # run the core unit tests
+```
+
+Issues and pull requests are welcome.
 
 ## License
 
-MIT
+MIT © Pedro & The Font-Tastic Open Source Contributors.
