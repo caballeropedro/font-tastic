@@ -1,6 +1,6 @@
 {
   "name": "@font-tastic/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Core typography detection, Google Fonts dynamic loading, and override engine for Font-Tastic",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -27,10 +27,13 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --watch --dts"
+    "dev": "tsup src/index.ts --format cjs,esm --watch --dts",
+    "test": "vitest run"
   },
   "devDependencies": {
+    "jsdom": "^26.1.0",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.7"
   }
 }

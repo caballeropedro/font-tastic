@@ -7,7 +7,7 @@
     "dev": "pnpm --filter font-tastic-web dev",
     "build": "pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && pnpm --filter font-tastic-web build",
     "release": "node scripts/check-release.mjs && pnpm --filter @font-tastic/core build && pnpm --filter @font-tastic/devtool build && (cd packages/core && /usr/bin/npm publish --access public --userconfig ../../.npmrc) && (cd packages/devtool && /usr/bin/npm publish --access public --userconfig ../../.npmrc)",
-    "test": "echo \"Running tests...\""
+    "test": "pnpm --filter @font-tastic/core test"
   },
   "devDependencies": {
     "typescript": "^5.7.3"

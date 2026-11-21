@@ -40,6 +40,8 @@ export interface ChannelConfig {
   fallbackVar?: string;
   targetVar?: string;
   customSelector?: string;
+  /** Set when this channel targets a CSS class instead of a built-in group. */
+  className?: string;
 }
 
 export interface ChannelState {
@@ -49,6 +51,35 @@ export interface ChannelState {
   letterSpacing?: string;
   lineHeight?: string;
   fontSizeScale?: number;
+}
+
+/**
+ * Where font overrides apply on the page.
+ * - 'all': every matching element, except the ignored ones.
+ * - 'only': just the selected elements (and what is inside them), minus the ignored ones.
+ */
+export type ScopeMode = 'all' | 'only';
+
+export interface ScopedElement {
+  /** Selector that points at the element, from getElementSelector(). */
+  selector: string;
+  /** Human-readable label, e.g. `h2 "Pricing"`. */
+  label: string;
+}
+
+export interface ScopeState {
+  mode: ScopeMode;
+  included: ScopedElement[];
+  excluded: ScopedElement[];
+}
+
+/** What clicking an element in pick mode does to it. */
+export type ScopeToggleAction = 'include' | 'exclude' | 'remove' | 'blocked';
+
+export interface ClassTarget {
+  /** Channel id, `class:<name>`. */
+  id: string;
+  className: string;
 }
 
 export interface TypographyHistoryEntry {

@@ -5,3 +5,4 @@ export * from './detector';
 export * from './loader';
 export * from './overrides';
 export * from './exporter';
+export * from './targeting';

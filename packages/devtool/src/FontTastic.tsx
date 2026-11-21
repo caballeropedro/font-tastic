@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import {
   detectProjectTypography,
   FontOverrideManager,
@@ -18,9 +18,14 @@ import {
   importFontFromUrl,
   removeCustomFont,
   inferFontFamilyFromFilename,
-  inferFontInfoFromUrl
+  inferFontInfoFromUrl,
+  ScopeState,
+  ScopeToggleAction,
+  ClassTarget,
+  cssEscape
 } from '@font-tastic/core';
 import { DEVTOOL_CSS } from './styles';
+import { ScopeOverlay } from './ScopeOverlay';
 import {
   X,
   Search,
@@ -34,7 +39,9 @@ import {
   Trash2,
   Upload,
   Link,
-  Plus
+  Plus,
+  Crosshair,
+  Hash
 } from 'lucide-react';
 
 export interface FontTasticProps {
@@ -42,7 +49,7 @@ export interface FontTasticProps {
   position?: 'bottom-right' | 'bottom-left';
 }
 
-type TabId = 'browse' | 'pairings' | 'history' | 'detected' | 'export';
+type TabId = 'browse' | 'targets' | 'pairings' | 'history' | 'detected' | 'export';
 type ExportFormat = 'tailwind-v3' | 'tailwind-v4' | 'css-vars' | 'fontsource' | 'nextjs';
 type CategoryFilter = FontCategory | 'all' | 'custom';
 
@@ -331,6 +338,15 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   const [historyEntries, setHistoryEntries] = useState<TypographyHistoryEntry[]>([]);
   const [justApplied, setJustApplied] = useState(false);
 
+  // Element scope and class targets
+  const [scope, setScope] = useState<ScopeState>({ mode: 'all', included: [], excluded: [] });
+  const [classTargets, setClassTargets] = useState<ClassTarget[]>([]);
+  const [isPicking, setIsPicking] = useState(false);
+  const [pickNotice, setPickNotice] = useState<string | null>(null);
+  const [focusSelector, setFocusSelector] = useState<string | null>(null);
+  const [classInput, setClassInput] = useState('');
+  const [classError, setClassError] = useState<string | null>(null);
+
   const managerRef = useRef<FontOverrideManager | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -345,6 +361,8 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     setOverridesEnabled(manager.isOverridesEnabled());
     setHighlightGroups(manager.isHighlightGroupsEnabled());
     setHistoryEntries(manager.getHistory());
+    setScope(manager.getScope());
+    setClassTargets(manager.getClassTargets());
   };
 
   const openDrawer = () => {
@@ -461,7 +479,78 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   }, [isOpen, activeTab, activeChannelId, mounted]);
 
   const channelColor = (id: string) =>
-    projectState?.recommendedChannels.find((c) => c.id === id)?.color || FALLBACK_COLORS[id] || '#949494';
+    projectState?.recommendedChannels.find((c) => c.id === id)?.color ||
+    managerRef.current?.getChannels().find((c) => c.id === id)?.color ||
+    FALLBACK_COLORS[id] ||
+    '#949494';
+
+  // Built-in channels plus one per class target
+  const allChannels = useMemo(
+    () => [...CHANNELS, ...classTargets.map((t) => ({ id: t.id, label: `.${t.className}` }))],
+    [classTargets]
+  );
+
+  // Channels to show for a saved entry: the built-ins plus any class it saved
+  const entryChannels = (entry: TypographyHistoryEntry) => [
+    ...CHANNELS,
+    ...Object.keys(entry.channels)
+      .filter((id) => id.startsWith('class:'))
+      .map((id) => ({ id, label: `.${id.slice('class:'.length)}` }))
+  ];
+
+  // If the active class target was removed, fall back to Headings
+  useEffect(() => {
+    if (mounted && !allChannels.some((c) => c.id === activeChannelId)) {
+      setActiveChannelId('heading');
+    }
+  }, [mounted, allChannels, activeChannelId]);
+
+  // Leaving the panel ends pick mode
+  useEffect(() => {
+    if (!isOpen) setIsPicking(false);
+  }, [isOpen]);
+
+  const handlePicked = useCallback((action: ScopeToggleAction, label: string) => {
+    setPickNotice(
+      action === 'blocked'
+        ? `${label} is inside an ignored area. Click the ignored area to bring it back first.`
+        : action === 'exclude'
+        ? `Ignored ${label}`
+        : action === 'include'
+        ? `Selected ${label}`
+        : `Unpicked ${label}`
+    );
+  }, []);
+
+  const stopPicking = useCallback(() => setIsPicking(false), []);
+
+  const handleAddClass = () => {
+    if (!managerRef.current) return;
+    try {
+      const id = managerRef.current.addClassTarget(classInput);
+      setClassInput('');
+      setClassError(null);
+      return id;
+    } catch (err) {
+      setClassError(err instanceof Error ? err.message : 'That class name could not be added.');
+      return undefined;
+    }
+  };
+
+  const classMatchCount = (className: string) => {
+    try {
+      return Array.from(document.querySelectorAll(`.${cssEscape(className)}`)).filter(
+        (el) => !el.closest('.ft-root')
+      ).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  const editChannelFonts = (id: string) => {
+    setActiveChannelId(id);
+    setActiveTab('browse');
+  };
 
   const allFonts = useMemo(() => {
     const customNames = new Set(customFonts.map((cf) => cf.family.toLowerCase()));
@@ -525,7 +614,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
   // Active channel config & state
   const currentChannelState = channelStates.get(activeChannelId);
   const currentAppliedState = appliedStates.get(activeChannelId);
-  const activeChannelLabel = CHANNELS.find((c) => c.id === activeChannelId)?.label || 'channel';
+  const activeChannelLabel = allChannels.find((c) => c.id === activeChannelId)?.label || 'channel';
 
   // Handle selecting a font for live preview
   const handleSelectFont = async (fontFamily: string) => {
@@ -643,26 +732,57 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
     });
   }, [channelStates, projectState]);
 
+  // CSS for class targets that have a font, added to every export format
+  const classExportCss = useMemo(() => {
+    const rules = classTargets
+      .map((t) => {
+        const st = channelStates.get(t.id);
+        if (!st?.selectedFont) return '';
+        const generic = genericFor(allFonts.find((f) => f.family === st.selectedFont)?.category);
+        const extra = [
+          parseSpacing(st.letterSpacing) !== 0 ? `  letter-spacing: ${st.letterSpacing};` : '',
+          (st.fontSizeScale ?? 1) !== 1 ? `  font-size: ${st.fontSizeScale}em;` : ''
+        ].filter(Boolean);
+        return [`.${cssEscape(t.className)} {`, `  font-family: "${st.selectedFont}", ${generic};`, ...extra, '}'].join('\n');
+      })
+      .filter(Boolean);
+    if (rules.length === 0) return '';
+    const families = classTargets
+      .map((t) => channelStates.get(t.id)?.selectedFont)
+      .filter((f): f is string => Boolean(f));
+    return [
+      `/* Fonts by class. Load ${Array.from(new Set(families)).join(', ')} the same way as the fonts above. */`,
+      ...rules
+    ].join('\n');
+  }, [classTargets, channelStates, allFonts]);
+
   const exportBlocks: { key: string; code: string }[] = useMemo(() => {
+    let base: { key: string; code: string }[];
     switch (exportFramework) {
       case 'tailwind-v3':
-        return [{ key: 'tw3', code: exportData.tailwindV3Snippet }];
+        base = [{ key: 'tw3', code: exportData.tailwindV3Snippet }];
+        break;
       case 'tailwind-v4':
-        return [{ key: 'tw4', code: exportData.tailwindV4Snippet }];
+        base = [{ key: 'tw4', code: exportData.tailwindV4Snippet }];
+        break;
       case 'css-vars':
-        return [
+        base = [
           { key: 'html', code: exportData.htmlHeadSnippet },
           { key: 'css', code: exportData.cssVariablesSnippet }
         ];
+        break;
       case 'fontsource':
-        return [
+        base = [
           { key: 'fs-cmd', code: exportData.fontsourceInstallCmd },
           { key: 'fs-imp', code: exportData.fontsourceImports }
         ];
+        break;
       default:
-        return [{ key: 'next', code: exportData.nextConfigSnippet }];
+        base = [{ key: 'next', code: exportData.nextConfigSnippet }];
+        break;
     }
-  }, [exportFramework, exportData]);
+    return classExportCss ? [...base, { key: 'classes', code: classExportCss }] : base;
+  }, [exportFramework, exportData, classExportCss]);
 
   // Custom properties only: the detector also reports vendor properties such as -webkit-font-smoothing
   const detectedVariables = useMemo(
@@ -769,7 +889,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
           <div className="ft-status" role="status">
             <span>
               {overridesEnabled
-                ? `${activeOverrideCount} of ${CHANNELS.length} channels overridden`
+                ? `${activeOverrideCount} of ${allChannels.length} channels overridden`
                 : 'Showing your original fonts'}
             </span>
           </div>
@@ -805,6 +925,16 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
 
   return (
     <div className="ft-root">
+      <ScopeOverlay
+        manager={managerRef.current}
+        scope={scope}
+        picking={isPicking}
+        showMarks={isOpen && activeTab === 'targets'}
+        focusSelector={focusSelector}
+        onStopPicking={stopPicking}
+        onPicked={handlePicked}
+      />
+
       {/* Floating trigger */}
       {!isOpen && (
         <button
@@ -895,6 +1025,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
             {(
               [
                 ['browse', 'Fonts'],
+                ['targets', 'Targets'],
                 ['pairings', 'Pairings'],
                 ['history', 'Saved'],
                 ['detected', 'Detected'],
@@ -910,6 +1041,11 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                 onClick={() => setActiveTab(id)}
               >
                 {label}
+                {id === 'targets' && scope.included.length + scope.excluded.length + classTargets.length > 0 && (
+                  <span className="ft-tab-count">
+                    {scope.included.length + scope.excluded.length + classTargets.length}
+                  </span>
+                )}
                 {id === 'history' && historyEntries.length > 0 && (
                   <span className="ft-tab-count">{historyEntries.length}</span>
                 )}
@@ -923,7 +1059,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
               <div className="ft-pane-top">
                 {/* Channel switcher: each channel shows its current font, set in that font */}
                 <div className="ft-channels">
-                  {CHANNELS.map((channel) => {
+                  {allChannels.map((channel) => {
                     const font = channelStates.get(channel.id)?.selectedFont;
                     return (
                       <button
@@ -932,7 +1068,10 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                         className="ft-channel"
                         aria-pressed={activeChannelId === channel.id}
                         onClick={() => setActiveChannelId(channel.id)}
-                        title={projectState?.recommendedChannels.find((c) => c.id === channel.id)?.description}
+                        title={
+                          projectState?.recommendedChannels.find((c) => c.id === channel.id)?.description ||
+                          managerRef.current?.getChannels().find((c) => c.id === channel.id)?.description
+                        }
                       >
                         <span className="ft-channel-label">
                           <span className="ft-dot" style={{ background: channelColor(channel.id) }} />
@@ -1291,7 +1430,211 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
             </div>
           )}
 
-          {/* Tab 2: Pairings */}
+          {/* Tab 2: Targets (where fonts apply + class targets) */}
+          {activeTab === 'targets' && (
+            <div className="ft-pane" role="tabpanel" aria-label="Targets">
+              <div className="ft-scroll ft-scroll-pad">
+                <div className="ft-section-title">Where fonts apply</div>
+                <div className="ft-segments ft-target-modes" role="group" aria-label="Where fonts apply">
+                  <button
+                    type="button"
+                    className="ft-segment"
+                    aria-pressed={scope.mode === 'all'}
+                    onClick={() => managerRef.current?.setScopeMode('all')}
+                  >
+                    Whole page
+                  </button>
+                  <button
+                    type="button"
+                    className="ft-segment"
+                    aria-pressed={scope.mode === 'only'}
+                    onClick={() => managerRef.current?.setScopeMode('only')}
+                  >
+                    Only selected
+                  </button>
+                </div>
+                <p className="ft-caption" style={{ margin: '8px 0' }}>
+                  {scope.mode === 'all'
+                    ? 'Every matching element changes. Pick elements to ignore them.'
+                    : 'Only the elements you pick change, along with everything inside them.'}
+                </p>
+
+                <div className="ft-target-actions">
+                  <button
+                    type="button"
+                    className="ft-btn"
+                    aria-pressed={isPicking}
+                    onClick={() => {
+                      setPickNotice(null);
+                      setIsPicking((prev) => !prev);
+                    }}
+                    title="Click elements on the page to select or ignore them (Esc to stop)"
+                  >
+                    <Crosshair size={14} />
+                    {isPicking ? 'Stop picking' : scope.mode === 'all' ? 'Pick elements to ignore' : 'Pick elements'}
+                  </button>
+                  <button
+                    type="button"
+                    className="ft-btn ft-btn-quiet"
+                    disabled={scope.mode === 'all' && scope.excluded.length === 0}
+                    onClick={() => managerRef.current?.selectAll()}
+                    title="Fonts apply to the whole page again"
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    className="ft-btn ft-btn-quiet"
+                    disabled={scope.mode === 'only' && scope.included.length === 0 && scope.excluded.length === 0}
+                    onClick={() => managerRef.current?.deselectAll()}
+                    title="Fonts apply nowhere until you pick elements"
+                  >
+                    Deselect all
+                  </button>
+                </div>
+
+                {isPicking && (
+                  <div className="ft-notice" role="status" style={{ marginTop: 8 }}>
+                    {pickNotice ||
+                      (scope.mode === 'all'
+                        ? 'Click anything on the page to ignore it. Click it again to bring it back. Esc stops.'
+                        : 'Click anything on the page to select it. Click inside a selection to ignore that part. Esc stops.')}
+                  </div>
+                )}
+
+                {scope.mode === 'only' && scope.included.length === 0 && !isPicking && (
+                  <div className="ft-notice" style={{ marginTop: 8 }}>
+                    Nothing is selected, so the page keeps its own fonts.
+                  </div>
+                )}
+
+                {(scope.mode === 'only' ? [...scope.included, ...scope.excluded] : scope.excluded).length > 0 && (
+                  <div className="ft-list" style={{ marginTop: 6 }}>
+                    {[
+                      ...(scope.mode === 'only' ? scope.included.map((e) => ({ ...e, kind: 'selected' as const })) : []),
+                      ...scope.excluded.map((e) => ({ ...e, kind: 'ignored' as const }))
+                    ].map((entry) => (
+                      <div
+                        key={`${entry.kind}:${entry.selector}`}
+                        className="ft-item"
+                        onMouseEnter={() => setFocusSelector(entry.selector)}
+                        onMouseLeave={() => setFocusSelector(null)}
+                      >
+                        <div className="ft-target-row">
+                          <span
+                            className="ft-dot"
+                            style={{ background: entry.kind === 'selected' ? 'var(--ft-positive)' : 'var(--ft-negative)' }}
+                          />
+                          <span className="ft-target-name">{entry.label}</span>
+                          <span className="ft-target-sub" title={entry.selector}>
+                            {entry.selector}
+                          </span>
+                          <span className="ft-target-side">
+                            <span className={`ft-pill ${entry.kind === 'selected' ? 'ft-pill-applied' : 'ft-pill-ignored'}`}>
+                              {entry.kind === 'selected' ? 'Selected' : 'Ignored'}
+                            </span>
+                            <button
+                              type="button"
+                              className="ft-btn ft-btn-quiet ft-btn-sm ft-btn-icon"
+                              aria-label={`Remove ${entry.label}`}
+                              title="Remove"
+                              onClick={() => {
+                                managerRef.current?.removeScopedElement(entry.selector);
+                                setFocusSelector(null);
+                              }}
+                            >
+                              <X size={13} />
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="ft-section-title">Fonts by class</div>
+                <p className="ft-caption" style={{ marginBottom: 8 }}>
+                  Give any CSS class its own font. It applies to the class and everything inside it, on top of the
+                  groups above.
+                </p>
+                <form
+                  className="ft-row"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAddClass();
+                  }}
+                >
+                  <div className="ft-search">
+                    <Hash size={14} />
+                    <input
+                      type="text"
+                      className="ft-input"
+                      placeholder=".card-title"
+                      aria-label="Class name"
+                      spellCheck={false}
+                      autoCapitalize="off"
+                      value={classInput}
+                      onChange={(e) => {
+                        setClassInput(e.target.value);
+                        setClassError(null);
+                      }}
+                    />
+                  </div>
+                  <button type="submit" className="ft-btn" disabled={!classInput.trim()}>
+                    <Plus size={14} />
+                    Add
+                  </button>
+                </form>
+                {classError && (
+                  <div className="ft-error" role="alert" style={{ marginTop: 6 }}>
+                    {classError}
+                  </div>
+                )}
+
+                {classTargets.length > 0 && (
+                  <div className="ft-list" style={{ marginTop: 6 }}>
+                    {classTargets.map((target) => {
+                      const font = channelStates.get(target.id)?.selectedFont;
+                      const matches = classMatchCount(target.className);
+                      return (
+                        <div key={target.id} className="ft-item">
+                          <div className="ft-target-row">
+                            <span className="ft-dot" style={{ background: channelColor(target.id) }} />
+                            <span className="ft-target-name ft-mono">.{target.className}</span>
+                            <span className="ft-target-sub">
+                              {matches === 0 ? 'Not on this page' : `${matches} on this page`}
+                              {' · '}
+                              {font || 'No font yet'}
+                            </span>
+                            <span className="ft-target-side">
+                              <button
+                                type="button"
+                                className="ft-btn ft-btn-sm"
+                                onClick={() => editChannelFonts(target.id)}
+                              >
+                                {font ? 'Change font' : 'Choose font'}
+                              </button>
+                              <button
+                                type="button"
+                                className="ft-btn ft-btn-quiet ft-btn-sm ft-btn-icon"
+                                aria-label={`Remove .${target.className}`}
+                                title="Remove this class"
+                                onClick={() => managerRef.current?.removeClassTarget(target.id)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Pairings */}
           {activeTab === 'pairings' && (
             <div className="ft-pane" role="tabpanel" aria-label="Pairings">
               <div className="ft-pane-top">
@@ -1404,7 +1747,9 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                       {historyEntries.map((entry) => {
                         const isCurrent =
                           !hasPending &&
-                          CHANNELS.every((c) => sameChannelLook(entry.channels[c.id], appliedStates.get(c.id)));
+                          [...allChannels, ...entryChannels(entry)].every((c) =>
+                            sameChannelLook(entry.channels[c.id], appliedStates.get(c.id))
+                          );
 
                         return (
                           <div key={entry.id} className="ft-item">
@@ -1424,7 +1769,7 @@ export function FontTastic({ initialOpen = false, position = 'bottom-right' }: F
                                 )}
                               </span>
                               <span className="ft-saved-fonts">
-                                {CHANNELS.map((c) => {
+                                {entryChannels(entry).map((c) => {
                                   const st = entry.channels[c.id];
                                   const tweaks = describeTweaks(st);
                                   return (

@@ -17,6 +17,44 @@ export interface Release {
 // Newest first. Add a new entry at the top for every release.
 export const RELEASES: Release[] = [
   {
+    version: '0.2.1',
+    date: '2026-11-21',
+    title: 'Choose exactly what changes',
+    summary:
+      'A new Targets tab lets you decide which parts of the page your fonts touch, and gives any CSS class a font of its own.',
+    changes: [
+      {
+        kind: 'new',
+        title: 'Pick elements on the page',
+        description:
+          'Turn on pick mode and click anything on your page. In Whole page mode a click ignores that element and everything inside it. In Only selected mode a click selects it, and only your selections change.'
+      },
+      {
+        kind: 'new',
+        title: 'Select all and Deselect all',
+        description:
+          'Select all brings fonts back to the whole page. Deselect all starts from nothing, so you can build up just the parts you want.'
+      },
+      {
+        kind: 'new',
+        title: 'See what is selected or ignored',
+        description:
+          'Selected elements are outlined in green and ignored ones in red, right on your page. While picking, a blue box shows what a click will do before you click.'
+      },
+      {
+        kind: 'new',
+        title: 'Fonts by class',
+        description:
+          'Add a class such as .card-title and it becomes its own channel with its own font, spacing and size. Class fonts are saved with Apply and included in Export.'
+      },
+      {
+        kind: 'improved',
+        title: 'Tested',
+        description: 'The override engine now has unit tests covering element picking, scope modes and class targets.'
+      }
+    ]
+  },
+  {
     version: '0.2.0',
     date: '2026-11-15',
     title: 'A faster, calmer panel',
