@@ -855,6 +855,102 @@ export const DEVTOOL_CSS = `
   .ft-input, .ft-select, .ft-field input { font-size: 16px; }
 }
 
+/* Targets tab */
+.ft-target-modes { display: flex; }
+.ft-target-modes .ft-segment { flex: 1; justify-content: center; }
+.ft-target-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ft-target-actions .ft-btn[aria-pressed="true"] {
+  background: var(--ft-accent);
+  border-color: var(--ft-accent);
+  color: #fff;
+}
+.ft-target-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 2px;
+  font-size: 12px;
+}
+.ft-target-row .ft-dot { grid-row: span 2; }
+.ft-target-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ft-text);
+}
+.ft-target-sub {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ft-faint);
+  font-family: var(--ft-face-code);
+  font-size: 11px;
+}
+.ft-target-side {
+  grid-row: span 2;
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ft-pill-ignored { background: var(--ft-negative-bg); color: var(--ft-negative); }
+.ft-notice {
+  font-size: 12px;
+  color: var(--ft-muted);
+  background: var(--ft-surface);
+  border-radius: var(--ft-radius-control);
+  padding: 7px 10px;
+}
+.ft-error { font-size: 12px; color: var(--ft-negative); }
+
+/* Page overlay: selected / ignored elements and the pick-mode hover box */
+.ft-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147482999;
+}
+.ft-mark {
+  position: fixed;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.ft-mark-selected {
+  outline: 2px solid #3fc07a;
+  background: rgba(63, 192, 122, 0.10);
+}
+.ft-mark-ignored {
+  outline: 2px dashed #f08a8a;
+  background: repeating-linear-gradient(135deg, rgba(240, 138, 138, 0.16) 0 6px, rgba(240, 138, 138, 0.04) 6px 12px);
+}
+.ft-mark-hover {
+  outline: 2px solid #3b82f6;
+  background: rgba(59, 130, 246, 0.10);
+}
+.ft-mark-label {
+  position: absolute;
+  left: -2px;
+  bottom: 100%;
+  margin-bottom: 2px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font: 500 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: #fff;
+}
+.ft-mark-label-inside { bottom: auto; top: 2px; left: 2px; margin: 0; }
+.ft-mark-selected .ft-mark-label { background: #23864f; }
+.ft-mark-ignored .ft-mark-label { background: #b54848; }
+.ft-mark-hover .ft-mark-label { background: #2f6fe0; }
+html.ft-picking, html.ft-picking *:not(.ft-root):not(.ft-root *) { cursor: crosshair !important; }
+
 /* Short windows: let the whole Fonts pane scroll instead of pinning its top */
 @media (max-height: 560px) {
   .ft-pane-fonts { overflow-y: auto; overscroll-behavior: contain; }

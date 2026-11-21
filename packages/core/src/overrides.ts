@@ -1,5 +1,21 @@
-import { ChannelConfig, ChannelState, TypographyHistoryEntry } from './types';
+import {
+  ChannelConfig,
+  ChannelState,
+  ClassTarget,
+  ScopeMode,
+  ScopeState,
+  ScopeToggleAction,
+  TypographyHistoryEntry
+} from './types';
 import { loadGoogleFont } from './loader';
+import {
+  classTargetId,
+  cssEscape,
+  describeElement,
+  getElementSelector,
+  normalizeClassName,
+  withinSelector
+} from './targeting';
 
 const STYLE_ELEMENT_ID = 'font-tastic-runtime-overrides';
 const HIGHLIGHT_STYLE_ELEMENT_ID = 'font-tastic-group-highlights';
@@ -7,6 +23,31 @@ const HIGHLIGHT_STYLE_ELEMENT_ID = 'font-tastic-group-highlights';
 const STORAGE_KEY_APPLIED = 'font-tastic:applied-states';
 const STORAGE_KEY_HISTORY = 'font-tastic:history';
 const STORAGE_KEY_PREFS = 'font-tastic:preferences';
+const STORAGE_KEY_SCOPE = 'font-tastic:scope';
+const STORAGE_KEY_CLASS_TARGETS = 'font-tastic:class-targets';
+
+const DEVTOOL_GUARD = ':not(.ft-root):not(.ft-root *):not([data-ft-dynamic]):not([data-ft-dynamic] *)';
+const CLASS_TARGET_COLORS = ['#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#8b5cf6'];
+
+/** Original computed values of an ignored element, used to undo inherited overrides on it. */
+interface OriginalLook {
+  fontFamily: string;
+  fontWeight: string;
+  letterSpacing: string;
+  lineHeight: string;
+  fontSize: string;
+}
+
+function emptyScope(mode: ScopeMode = 'all'): ScopeState {
+  return { mode, included: [], excluded: [] };
+}
+
+function splitSelectorList(list: string): string[] {
+  return list
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function isChannelStateEqual(a?: ChannelState, b?: ChannelState): boolean {
   const fontA = a?.selectedFont || null;
@@ -40,6 +81,22 @@ function hasChannelCustomization(state?: ChannelState): boolean {
   );
 }
 
+function safeClosest(el: Element, selector: string): boolean {
+  try {
+    return Boolean(el.closest(selector));
+  } catch {
+    return false;
+  }
+}
+
+function safeQuery(selector: string): Element | null {
+  try {
+    return document.querySelector(selector);
+  } catch {
+    return null;
+  }
+}
+
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
   if (clean.length === 6) {
@@ -59,11 +116,31 @@ export class FontOverrideManager {
   private originalCssVars: Map<string, string> = new Map();
   private overridesEnabled: boolean = true;
   private highlightGroups: boolean = false;
+  private scope: ScopeState = emptyScope();
+  private originalLooks: Map<string, OriginalLook> = new Map();
   private listeners: Set<(states: Map<string, ChannelState>) => void> = new Set();
 
   constructor(configs: ChannelConfig[] = []) {
     this.initChannels(configs);
     this.loadFromStorage();
+  }
+
+  private registerClassChannel(className: string): string {
+    const id = classTargetId(className);
+    if (this.channels.has(id)) return id;
+    const index = this.getClassTargets().length;
+    this.channels.set(id, {
+      id,
+      label: `.${className}`,
+      description: `Elements with the class "${className}" and everything inside them`,
+      defaultSelector: `.${cssEscape(className)}`,
+      color: CLASS_TARGET_COLORS[index % CLASS_TARGET_COLORS.length],
+      className
+    });
+    const initial: ChannelState = { channelId: id, selectedFont: null };
+    this.states.set(id, { ...initial });
+    this.appliedStates.set(id, { ...initial });
+    return id;
   }
 
   public initChannels(configs: ChannelConfig[]): void {
@@ -102,6 +179,30 @@ export class FontOverrideManager {
         }
       }
 
+      const scopeRaw = window.localStorage.getItem(STORAGE_KEY_SCOPE);
+      if (scopeRaw) {
+        const parsedScope = JSON.parse(scopeRaw) as Partial<ScopeState>;
+        const isList = (v: unknown) =>
+          Array.isArray(v) && v.every((e) => e && typeof e.selector === 'string' && typeof e.label === 'string');
+        this.scope = {
+          mode: parsedScope.mode === 'only' ? 'only' : 'all',
+          included: isList(parsedScope.included) ? parsedScope.included! : [],
+          excluded: isList(parsedScope.excluded) ? parsedScope.excluded! : []
+        };
+      }
+
+      // Class targets must exist before applied states load, so their fonts restore too
+      const classesRaw = window.localStorage.getItem(STORAGE_KEY_CLASS_TARGETS);
+      if (classesRaw) {
+        const parsedClasses = JSON.parse(classesRaw);
+        if (Array.isArray(parsedClasses)) {
+          for (const name of parsedClasses) {
+            const clean = typeof name === 'string' ? normalizeClassName(name) : null;
+            if (clean) this.registerClassChannel(clean);
+          }
+        }
+      }
+
       const historyRaw = window.localStorage.getItem(STORAGE_KEY_HISTORY);
       if (historyRaw) {
         const parsedHistory = JSON.parse(historyRaw);
@@ -127,8 +228,7 @@ export class FontOverrideManager {
       // Ignore storage access or parse errors
     }
 
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.rebuildHighlightStyleElement();
   }
 
@@ -148,6 +248,11 @@ export class FontOverrideManager {
           overridesEnabled: this.overridesEnabled,
           highlightGroups: this.highlightGroups
         })
+      );
+      window.localStorage.setItem(STORAGE_KEY_SCOPE, JSON.stringify(this.scope));
+      window.localStorage.setItem(
+        STORAGE_KEY_CLASS_TARGETS,
+        JSON.stringify(this.getClassTargets().map((t) => t.className))
       );
     } catch {
       // Ignore storage quota / security errors
@@ -188,8 +293,7 @@ export class FontOverrideManager {
     }
 
     // 3. Sync CSS variables and runtime style overrides element
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -209,8 +313,7 @@ export class FontOverrideManager {
       this.overridesEnabled = true;
     }
 
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -228,10 +331,10 @@ export class FontOverrideManager {
       snapshot[id] = cloned;
 
       if (cloned.selectedFont) {
-        const shortName = id === 'heading' ? 'H' : id === 'body' ? 'B' : id === 'mono' ? 'M' : id;
+        const shortName = this.shortChannelName(id);
         labelParts.push(`${shortName}: ${cloned.selectedFont}`);
       } else if (hasChannelCustomization(cloned)) {
-        const shortName = id === 'heading' ? 'H' : id === 'body' ? 'B' : id === 'mono' ? 'M' : id;
+        const shortName = this.shortChannelName(id);
         labelParts.push(`${shortName}: Custom`);
       }
     }
@@ -245,8 +348,7 @@ export class FontOverrideManager {
 
     this.history = [entry, ...this.history].slice(0, 20);
     this.saveToStorage();
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
     return entry;
   }
@@ -259,8 +361,7 @@ export class FontOverrideManager {
       this.states.set(id, { ...applied });
     }
 
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -304,8 +405,7 @@ export class FontOverrideManager {
     await Promise.all(fontPromises);
     this.overridesEnabled = true;
     this.saveToStorage();
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -318,8 +418,7 @@ export class FontOverrideManager {
   public setOverridesEnabled(enabled: boolean): void {
     this.overridesEnabled = enabled;
     this.saveToStorage();
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -347,8 +446,7 @@ export class FontOverrideManager {
       selectedFont: null
     });
 
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -363,8 +461,7 @@ export class FontOverrideManager {
     }
 
     this.saveToStorage();
-    this.syncCssVariables();
-    this.rebuildStyleElement();
+    this.render();
     this.notifyListeners();
   }
 
@@ -397,90 +494,343 @@ export class FontOverrideManager {
     }
   }
 
-  private syncCssVariables(): void {
-    if (typeof document === 'undefined') return;
+  // ---------------------------------------------------------------------------
+  // Element scope: choose which parts of the page the overrides touch
+  // ---------------------------------------------------------------------------
 
-    for (const [channelId, config] of this.channels.entries()) {
-      const targetVar = config.targetVar || config.fallbackVar;
-      if (!targetVar) continue;
+  public getScope(): ScopeState {
+    return {
+      mode: this.scope.mode,
+      included: [...this.scope.included],
+      excluded: [...this.scope.excluded]
+    };
+  }
 
-      const state = this.states.get(channelId);
-      if (this.overridesEnabled && state?.selectedFont) {
-        document.documentElement.style.setProperty(targetVar, `"${state.selectedFont}", sans-serif`);
-      } else {
-        const orig = this.originalCssVars.get(targetVar);
-        if (orig) {
-          document.documentElement.style.setProperty(targetVar, orig);
-        } else {
-          document.documentElement.style.removeProperty(targetVar);
-        }
-      }
+  /** Switches between changing the whole page and only the selected elements. */
+  public setScopeMode(mode: ScopeMode): void {
+    if (this.scope.mode === mode) return;
+    // Selections only mean something in 'only' mode, so drop them when going back to the whole page
+    this.scope = { mode, included: mode === 'all' ? [] : this.scope.included, excluded: this.scope.excluded };
+    this.commitScope();
+  }
+
+  /** Overrides apply everywhere again: whole-page mode, nothing ignored. */
+  public selectAll(): void {
+    this.scope = emptyScope('all');
+    this.commitScope();
+  }
+
+  /** Overrides apply nowhere until elements are selected. */
+  public deselectAll(): void {
+    this.scope = emptyScope('only');
+    this.commitScope();
+  }
+
+  /** What clicking this element in pick mode would do, without changing anything. */
+  public getToggleAction(el: Element): ScopeToggleAction {
+    const selector = getElementSelector(el);
+    if (this.scope.excluded.some((e) => e.selector === selector)) return 'remove';
+    if (this.scope.included.some((e) => e.selector === selector)) return 'remove';
+    if (this.scope.excluded.some((e) => safeClosest(el, e.selector))) return 'blocked';
+    return this.isElementTargeted(el) ? 'exclude' : 'include';
+  }
+
+  /**
+   * Picks or unpicks an element:
+   * - already selected or ignored: removes it from that list
+   * - currently changed by the overrides: ignores it (and everything inside it)
+   * - currently untouched (only-mode): selects it
+   * - inside an ignored area: does nothing ('blocked')
+   */
+  public toggleElement(el: Element): ScopeToggleAction {
+    const action = this.getToggleAction(el);
+    const selector = getElementSelector(el);
+
+    if (action === 'blocked') return action;
+    if (action === 'remove') {
+      this.scope = {
+        ...this.scope,
+        included: this.scope.included.filter((e) => e.selector !== selector),
+        excluded: this.scope.excluded.filter((e) => e.selector !== selector)
+      };
+    } else {
+      const entry = { selector, label: describeElement(el) };
+      this.scope =
+        action === 'exclude'
+          ? { ...this.scope, excluded: [...this.scope.excluded, entry] }
+          : { ...this.scope, included: [...this.scope.included, entry] };
     }
+
+    this.commitScope();
+    return action;
   }
 
-  private scopeSelectorsExcludeDevtool(selectorList: string): string {
-    return selectorList
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) =>
-        s === 'body'
-          ? 'body'
-          : `${s}:not(.ft-root):not(.ft-root *):not([data-ft-dynamic]):not([data-ft-dynamic] *)`
-      )
-      .join(', ');
+  /** Removes one entry from the selected or ignored list by its selector. */
+  public removeScopedElement(selector: string): void {
+    this.scope = {
+      ...this.scope,
+      included: this.scope.included.filter((e) => e.selector !== selector),
+      excluded: this.scope.excluded.filter((e) => e.selector !== selector)
+    };
+    this.commitScope();
   }
 
-  private rebuildStyleElement(): void {
+  /** Whether the overrides currently reach this element. */
+  public isElementTargeted(el: Element): boolean {
+    if (this.scope.excluded.some((e) => safeClosest(el, e.selector))) return false;
+    if (this.scope.mode === 'all') return true;
+    return this.scope.included.some((e) => safeClosest(el, e.selector));
+  }
+
+  private commitScope(): void {
+    this.saveToStorage();
+    this.render();
+    this.notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Class targets: give any CSS class its own font
+  // ---------------------------------------------------------------------------
+
+  public getClassTargets(): ClassTarget[] {
+    const targets: ClassTarget[] = [];
+    for (const config of this.channels.values()) {
+      if (config.className) targets.push({ id: config.id, className: config.className });
+    }
+    return targets;
+  }
+
+  /**
+   * Adds a class (".card-title" or "card-title") as its own channel and returns its id.
+   * Pick a font for it with applyFont(id, family) like any other channel.
+   */
+  public addClassTarget(input: string): string {
+    const className = normalizeClassName(input);
+    if (!className) {
+      throw new Error('Enter one class name, like .card-title');
+    }
+    const id = this.registerClassChannel(className);
+    this.saveToStorage();
+    this.notifyListeners();
+    return id;
+  }
+
+  public removeClassTarget(id: string): void {
+    if (!this.channels.get(id)?.className) return;
+    this.channels.delete(id);
+    this.states.delete(id);
+    this.appliedStates.delete(id);
+    this.saveToStorage();
+    this.render();
+    this.notifyListeners();
+  }
+
+  private shortChannelName(id: string): string {
+    if (id === 'heading') return 'H';
+    if (id === 'body') return 'B';
+    if (id === 'mono') return 'M';
+    return this.channels.get(id)?.label || id;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------------
+
+  /** Rebuilds everything the overrides put on the page: CSS variables and the runtime style rules. */
+  private render(): void {
     if (typeof document === 'undefined') return;
 
+    const styleEl = this.ensureStyleElement();
+    const needsCapture = this.scope.excluded.some((e) => !this.originalLooks.has(e.selector));
+    if (needsCapture) {
+      // Read ignored elements' original look with every override removed
+      styleEl.textContent = '';
+      this.restoreRootVariables();
+      this.captureOriginalLooks();
+    }
+
+    this.syncCssVariables();
+    styleEl.textContent = this.overridesEnabled ? this.buildOverrideCss() : '';
+  }
+
+  private ensureStyleElement(): HTMLStyleElement {
     let styleEl = document.getElementById(STYLE_ELEMENT_ID) as HTMLStyleElement | null;
     if (!styleEl) {
       styleEl = document.createElement('style');
       styleEl.id = STYLE_ELEMENT_ID;
       document.head.appendChild(styleEl);
     }
+    return styleEl;
+  }
 
-    if (!this.overridesEnabled) {
-      styleEl.textContent = '';
-      return;
+  private captureOriginalLooks(): void {
+    for (const entry of this.scope.excluded) {
+      if (this.originalLooks.has(entry.selector)) continue;
+      const el = safeQuery(entry.selector);
+      if (!el) continue;
+      const cs = window.getComputedStyle(el);
+      this.originalLooks.set(entry.selector, {
+        fontFamily: cs.fontFamily,
+        fontWeight: cs.fontWeight,
+        letterSpacing: cs.letterSpacing,
+        lineHeight: cs.lineHeight,
+        fontSize: cs.fontSize
+      });
     }
+  }
 
-    let cssRules = '';
+  private restoreRootVariables(): void {
+    for (const config of this.channels.values()) {
+      const targetVar = config.targetVar || config.fallbackVar;
+      if (!targetVar) continue;
+      const orig = this.originalCssVars.get(targetVar);
+      if (orig) {
+        document.documentElement.style.setProperty(targetVar, orig);
+      } else {
+        document.documentElement.style.removeProperty(targetVar);
+      }
+    }
+  }
+
+  private syncCssVariables(): void {
+    if (typeof document === 'undefined') return;
+
+    this.restoreRootVariables();
+    // In only-mode the variables are set on the selected elements instead of :root
+    if (!this.overridesEnabled || this.scope.mode === 'only') return;
+
+    for (const [channelId, config] of this.channels.entries()) {
+      const targetVar = config.targetVar || config.fallbackVar;
+      const state = this.states.get(channelId);
+      if (targetVar && state?.selectedFont) {
+        document.documentElement.style.setProperty(targetVar, `"${state.selectedFont}", sans-serif`);
+      }
+    }
+  }
+
+  private scopeSelectorsExcludeDevtool(selectorList: string): string {
+    return splitSelectorList(selectorList)
+      .map((s) => (s === 'body' ? 'body' : `${s}${DEVTOOL_GUARD}`))
+      .join(', ');
+  }
+
+  /** The CSS text for the runtime overrides, honoring the element scope and class targets. */
+  public buildOverrideCss(): string {
+    const { mode, included, excluded } = this.scope;
+    const includedSelectors = included.map((e) => e.selector);
+    const excludedSelectors = excluded.map((e) => e.selector);
+    const notIgnored = excludedSelectors.length > 0 ? `:not(${withinSelector(excludedSelectors)})` : '';
+    const insideSelected = includedSelectors.length > 0 ? withinSelector(includedSelectors) : '';
+    const builtIns = Array.from(this.channels.values()).filter((c) => !c.className);
+    const used = { font: false, weight: false, spacing: false, line: false, size: false };
+
+    const groupRules: string[] = [];
+    const classRules: string[] = [];
 
     for (const [channelId, state] of this.states.entries()) {
       if (!hasChannelCustomization(state)) continue;
-
       const config = this.channels.get(channelId);
       if (!config) continue;
 
-      const rawSelector = config.customSelector || config.defaultSelector;
-      const selector = this.scopeSelectorsExcludeDevtool(rawSelector);
-
       let ruleBody = '';
-
       if (state.selectedFont) {
         ruleBody += `font-family: "${state.selectedFont}", sans-serif !important;`;
+        used.font = true;
       }
       if (state.selectedWeight) {
         ruleBody += ` font-weight: ${state.selectedWeight} !important;`;
+        used.weight = true;
       }
       if (state.letterSpacing) {
         ruleBody += ` letter-spacing: ${state.letterSpacing} !important;`;
+        used.spacing = true;
       }
       if (state.lineHeight) {
         ruleBody += ` line-height: ${state.lineHeight} !important;`;
+        used.line = true;
       }
       if (state.fontSizeScale && state.fontSizeScale !== 1) {
         ruleBody += ` font-size: calc(1em * ${state.fontSizeScale}) !important;`;
+        used.size = true;
+      }
+      if (!ruleBody.trim()) continue;
+
+      const rawSelector = config.customSelector || config.defaultSelector;
+
+      // Class targets: the class and everything inside it; ignored areas still win
+      if (config.className) {
+        const selector = [rawSelector, `${rawSelector} *`]
+          .map((s) => `${s}${DEVTOOL_GUARD}${notIgnored}`)
+          .join(', ');
+        classRules.push(`${selector} { ${ruleBody} }`);
+        continue;
       }
 
-      if (ruleBody.trim()) {
-        cssRules += `${selector} { ${ruleBody} }\n`;
+      const parts = splitSelectorList(rawSelector);
+
+      if (mode === 'all') {
+        const selector = parts
+          .map((s) => (s === 'body' ? `body${notIgnored}` : `${s}${DEVTOOL_GUARD}${notIgnored}`))
+          .join(', ');
+        groupRules.push(`${selector} { ${ruleBody} }`);
+        continue;
+      }
+
+      // Only-mode: nothing selected means nothing changes
+      if (!insideSelected) continue;
+      const scoped = parts
+        .filter((s) => s !== 'body')
+        .map((s) => `${s}${DEVTOOL_GUARD}${insideSelected}${notIgnored}`);
+      if (parts.includes('body')) {
+        // The channel that normally reaches text through inheritance from <body>
+        // applies to the selected elements themselves, unless another group owns them
+        const otherGroups = builtIns
+          .filter((c) => c.id !== channelId)
+          .flatMap((c) => splitSelectorList(c.customSelector || c.defaultSelector))
+          .filter((s) => s !== 'body');
+        const notOther = otherGroups.length > 0 ? `:not(:is(${otherGroups.join(', ')}))` : '';
+        scoped.unshift(`:is(${includedSelectors.join(', ')})${DEVTOOL_GUARD}${notOther}${notIgnored}`);
+      }
+      if (scoped.length > 0) groupRules.push(`${scoped.join(', ')} { ${ruleBody} }`);
+    }
+
+    const varRules: string[] = [];
+    if (mode === 'only' && includedSelectors.length > 0) {
+      const declarations = builtIns
+        .map((c) => {
+          const targetVar = c.targetVar || c.fallbackVar;
+          const font = this.states.get(c.id)?.selectedFont;
+          return targetVar && font ? `${targetVar}: "${font}", sans-serif !important;` : '';
+        })
+        .filter(Boolean);
+      if (declarations.length > 0) {
+        varRules.push(`:is(${includedSelectors.join(', ')}) { ${declarations.join(' ')} }`);
       }
     }
 
-    styleEl.textContent = cssRules;
+    // Ignored elements get their original look back, so they don't inherit an override
+    const restoreRules: string[] = [];
+    for (const selector of excludedSelectors) {
+      const look = this.originalLooks.get(selector);
+      const declarations: string[] = [];
+      if (look) {
+        if (used.font && look.fontFamily) declarations.push(`font-family: ${look.fontFamily} !important;`);
+        if (used.weight && look.fontWeight) declarations.push(`font-weight: ${look.fontWeight} !important;`);
+        if (used.spacing && look.letterSpacing) declarations.push(`letter-spacing: ${look.letterSpacing} !important;`);
+        if (used.line && look.lineHeight) declarations.push(`line-height: ${look.lineHeight} !important;`);
+        if (used.size && look.fontSize) declarations.push(`font-size: ${look.fontSize} !important;`);
+      }
+      for (const c of builtIns) {
+        const targetVar = c.targetVar || c.fallbackVar;
+        const orig = targetVar ? this.originalCssVars.get(targetVar) : '';
+        if (targetVar && orig && this.states.get(c.id)?.selectedFont) {
+          declarations.push(`${targetVar}: ${orig} !important;`);
+        }
+      }
+      if (declarations.length > 0) restoreRules.push(`${selector} { ${declarations.join(' ')} }`);
+    }
+
+    return [...varRules, ...groupRules, ...classRules, ...restoreRules].map((r) => `${r}\n`).join('');
   }
 
   private rebuildHighlightStyleElement(): void {

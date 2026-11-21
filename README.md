@@ -40,6 +40,8 @@ Font-Tastic puts the font picker inside your running app, so you judge every fon
 - **Pairings and shuffle.** Apply a curated pairing in one click, or randomize.
 - **Fine-tuning.** Adjust letter spacing and size scale live, without touching CSS.
 - **Apply or cancel.** Changes are a preview until you press Apply. Applied fonts are saved in your browser, so they stay on across reloads while you work, and every applied set goes into a history you can return to. Cancel puts back what you had.
+- **Choose what changes.** In the Targets tab, click elements on your page to ignore them, or switch to *Only selected* and change just the parts you pick. Select all / Deselect all reset it, and selected (green) and ignored (red) elements are highlighted on the page.
+- **Fonts by class.** Give any CSS class, like `.card-title`, its own font, spacing and size. It is saved with Apply and included in Export.
 - **Group boxes.** Outline every element each channel controls, so you can see what a change affects.
 - **One-click export.** Copy the result as an HTML `<link>`, CSS variables, Tailwind v3 config, Tailwind v4 `@theme`, `@fontsource` install commands, or Next.js `next/font`.
 - **Development only.** Render it behind a dev check and it never ships to production.
@@ -120,6 +122,7 @@ This is a `pnpm` monorepo. You need Node.js 18 or newer and pnpm 9 or newer.
 pnpm install   # install dependencies
 pnpm dev       # run the website at http://localhost:3000
 pnpm build     # build core, devtool and the website
+pnpm test      # run the core unit tests
 ```
 
 Issues and pull requests are welcome.
